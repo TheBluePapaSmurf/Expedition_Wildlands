@@ -8,19 +8,17 @@ Material:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_Name: Eyebrows.001
-  m_Shader: {fileID: 4800000, guid: 60e29b7951f20da47b11861d166b7036, type: 3}
+  m_Shader: {fileID: 4800000, guid: bee44b4a58655ee4cbff107302a3e131, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _OUTLINETYPE_NORMAL
-  - _OVERLAYMODE1_NONE
-  - _OVERLAYMODE_NONE
-  - _RIMSPLITCOLOR_MULTIPLYWITHDIFFUSE
-  - _USEDYNAMICOUTLINE_ON
-  - _USEHATCHINGCONSTANTSCALE_ON
-  - _USELIGHTRAMP_POSTERIZE
-  - _USEPURESKETCH_ON
-  m_InvalidKeywords: []
+  - _CELPRIMARYMODE_SINGLE
+  - _DETAILMAPBLENDINGMODE_MULTIPLY
+  - _GRADIENTSPACE_WORLD
+  - _OUTLINESPACE_SCREEN
+  - _TEXTUREBLENDINGMODE_MULTIPLY
+  m_InvalidKeywords:
+  - _UNITYSHADOWMODE_NONE
   m_LightmapFlags: 2
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -39,7 +37,19 @@ Material:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _CelCurveTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _CelStepTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _DetailAlbedoMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+    - _DetailMap:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
@@ -128,15 +138,22 @@ Material:
     - _BacklightAmount: 0.5
     - _BacklightHardness: 0
     - _BacklightIntensity: 1
+    - _BaseMapPremultiply: 0
     - _Blend: 0
     - _BlendModePreserveSpecular: 1
     - _BumpScale: 1
+    - _CameraDistanceImpact: 0
+    - _CelExtraEnabled: 0
+    - _CelNumSteps: 3
+    - _CelPrimaryMode: 1
     - _ClearCoatMask: 0
     - _ClearCoatSmoothness: 0
     - _Cull: 2
     - _Cutoff: 0
     - _Darken: 0
     - _DetailAlbedoMapScale: 1
+    - _DetailMapBlendingMode: 0
+    - _DetailMapImpact: 0
     - _DetailNormalMapScale: 1
     - _DiffusePosterizeOffset: -0.5
     - _DiffusePosterizePower: 1.61
@@ -146,9 +163,22 @@ Material:
     - _DstBlend: 0
     - _DstBlendAlpha: 0
     - _EnvironmentReflections: 1
+    - _FlatRimEdgeSmoothness: 0.5
+    - _FlatRimLightAlign: 0
+    - _FlatRimSize: 0.5
+    - _FlatSpecularEdgeSmoothness: 0
+    - _FlatSpecularSize: 0.1
+    - _Flatness: 1
+    - _FlatnessExtra: 1
     - _GlossMapScale: 0
     - _Glossiness: 0.529
     - _GlossyReflections: 0
+    - _GradientAngle: 0
+    - _GradientCenterX: 0
+    - _GradientCenterY: 0
+    - _GradientEnabled: 0
+    - _GradientSize: 10
+    - _GradientSpace: 0
     - _HalftoneEdgeOffset: 0.1
     - _HalftoneSmoothness: 0.3
     - _HalftoneThreshold: 0.1
@@ -157,33 +187,48 @@ Material:
     - _IndirectLightAffectOnHatch: 0
     - _IndirectLightStrength: 1
     - _InverseMask: 0
+    - _LightContribution: 0
+    - _LightFalloffSize: 0
     - _LightRampOffset: 0
     - _Lighten: 0
+    - _LightmapDirectionPitch: 0
+    - _LightmapDirectionYaw: 0
     - _MainLightIntesity: 1.48
     - _MaxScaleDependingOnCamera: 1
     - _Metallic: 0
     - _Mode: 0
     - _NormalMapStrength: 1
     - _OcclusionStrength: 1
+    - _OutlineDepthOffset: 0
     - _OutlineDynamicSpeed: 0
+    - _OutlineEnabled: 0
     - _OutlineNoiseIntesity: 1
     - _OutlineNoiseScale: 10
+    - _OutlineScale: 1
+    - _OutlineSpace: 0
     - _OutlineTextureStrength: 0
     - _OutlineType: 0
+    - _OutlineWidth: 1
     - _OverlayMode: 0
     - _OverlayMode1: 0
     - _OverlayRotation: 0
     - _OverlayUVTilling: 0
+    - _OverrideLightmapDir: 0
     - _PaperTilling: 1
     - _Parallax: 0.005
     - _QueueControl: -1
     - _QueueOffset: 0
     - _RampDiffuseTextureLoaded: 1
     - _ReceiveShadows: 1
+    - _RimEnabled: 0
     - _RimPower: 4
     - _RimSmoothness: 0
     - _RimSplitColor: 1
     - _RimThickness: 1.85
+    - _SelfShadingSize: 0.5
+    - _SelfShadingSizeExtra: 0.6
+    - _ShadowEdgeSize: 0.05
+    - _ShadowEdgeSizeExtra: 0.05
     - _ShapeSmoothness: 0.2
     - _SideShineAmount: 0.2717647
     - _SideShineHardness: 0
@@ -191,6 +236,7 @@ Material:
     - _Smoothness: 0.5
     - _SmoothnessMultiplier: 1.12
     - _SmoothnessTextureChannel: 0
+    - _SpecularEnabled: 0
     - _SpecularFaloff: 0
     - _SpecularHighlights: 1
     - _SpecularMaskRotation: 0
@@ -204,6 +250,8 @@ Material:
     - _StepOffset: 0.302
     - _Strength: 0
     - _Surface: 0
+    - _TextureBlendingMode: 0
+    - _TextureImpact: 1
     - _Thicnkess: 0
     - _UVAnimationSpeed: 0
     - _UVAnimationSpeedSpec: 0
@@ -215,6 +263,10 @@ Material:
     - _UVSrcrollAngle: 0
     - _UVSrcrollAngleSpec: 0
     - _UVSrcrollAngleWarp: 0
+    - _UnityShadowMode: 0
+    - _UnityShadowOcclusion: 0
+    - _UnityShadowPower: 0.2
+    - _UnityShadowSharpness: 1
     - _UseAdaptiveScreenUvs: 0
     - _UseAdaptiveScreenUvsWarp: 0
     - _UseAdaptiveUvsSpecular: 0
@@ -236,23 +288,36 @@ Material:
     - _UseShadows: 0
     - _UseSpecular: 0
     - _UseSpecularMask: 0
+    - _VertexColorsEnabled: 0
+    - _VertexExtrusionSmoothNormals: 0
     - _WarpStrength: -0.09
     - _WarpTextureRotation: 0
     - _WarpTextureScale: 1
     - _WorkflowMode: 1
     - _ZWrite: 1
     m_Colors:
-    - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
+    - _BaseColor: {r: 0.6132076, g: 0.3893923, b: 0.17644179, a: 1}
     - _Color: {r: 0.6792453, g: 0.3695542, b: 0.022427924, a: 1}
+    - _ColorDim: {r: 0.9150943, g: 0.44544274, b: 0, a: 1}
+    - _ColorDimCurve: {r: 0.85023, g: 0.85034, b: 0.8504499, a: 0.85056}
+    - _ColorDimExtra: {r: 0.85023, g: 0.85034, b: 0.8504499, a: 0.85056}
+    - _ColorDimSteps: {r: 0.85023, g: 0.85034, b: 0.8504499, a: 0.85056}
+    - _ColorGradient: {r: 0.85023, g: 0.85034, b: 0.85045, a: 0.85056}
+    - _DetailMapColor: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
+    - _FlatRimColor: {r: 0.85023, g: 0.85034, b: 0.85045, a: 0.85056}
+    - _FlatSpecularColor: {r: 0.85023, g: 0.85034, b: 0.85045, a: 0.85056}
     - _HalftoneColor: {r: 0, g: 0, b: 0, a: 1}
     - _HatchingColor: {r: 0, g: 0, b: 0, a: 1}
+    - _LightmapDirection: {r: 0, g: 1, b: 0, a: 0}
     - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
     - _RimColor: {r: 0, g: 0, b: 0, a: 0}
     - _RimShadowColor: {r: 0, g: 0, b: 0, a: 0}
     - _ShadowColor: {r: 0, g: 0, b: 0, a: 0}
     - _SpecColor: {r: 0.3018868, g: 0.3018868, b: 0.3018868, a: 1}
+    - _UnityShadowColor: {r: 0.85023, g: 0.85034, b: 0.8504499, a: 0.85056}
   m_BuildTextureStacks: []
+  m_AllowLocking: 1
 --- !u!114 &8219082702901083640
 MonoBehaviour:
   m_ObjectHideFlags: 11

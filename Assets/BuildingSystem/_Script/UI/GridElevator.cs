@@ -11,8 +11,16 @@ public class GridElevator : MonoBehaviour
 
     public StructurePlacer structurePlacer; // Referentie naar StructurePlacer
 
+    public int currentIndex = 0; // Standaard index
+
+    private int maxIndex = 2;
+
     private void Start()
     {
+        if (structurePlacer != null)
+        {
+            maxIndex = structurePlacer.transform.childCount - 1; // Aantal child GameObjects
+        }
         // Controleer of de knoppen en het doelobject zijn ingesteld
         if (increaseButton != null)
             increaseButton.onClick.AddListener(IncreasePosition);
@@ -21,36 +29,49 @@ public class GridElevator : MonoBehaviour
             decreaseButton.onClick.AddListener(DecreasePosition);
     }
 
+    public void SetCurrentIndex(int index)
+    {
+        currentIndex = index; // Stel de index in vanuit een UI of ander script
+    }
+
+    public int GetCurrentIndex()
+    {
+        return currentIndex;
+    }
+
     public void IncreasePosition()
     {
-        if (targetObject != null)
+        if (currentIndex < maxIndex)
         {
             Vector3 newPosition = targetObject.transform.position;
             newPosition.y += stepSize;
             targetObject.transform.position = newPosition;
 
-            // Update de hoogte in StructurePlacer
             if (structurePlacer != null)
             {
                 structurePlacer.IncreaseHeight(stepSize);
             }
+
+            currentIndex++;
+            Debug.Log($"Current Index Increased: {currentIndex}");
         }
     }
 
     public void DecreasePosition()
     {
-        if (targetObject != null)
+        if (currentIndex > 0)
         {
             Vector3 newPosition = targetObject.transform.position;
             newPosition.y -= stepSize;
             targetObject.transform.position = newPosition;
 
-            // Update de hoogte in StructurePlacer
             if (structurePlacer != null)
             {
                 structurePlacer.DecreaseHeight(stepSize);
             }
+
+            currentIndex--;
+            Debug.Log($"Current Index Decreased: {currentIndex}");
         }
     }
-
 }

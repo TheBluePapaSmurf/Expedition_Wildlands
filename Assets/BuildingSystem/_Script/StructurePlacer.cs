@@ -16,7 +16,6 @@ public class StructurePlacer : MonoBehaviour
     [SerializeField]
     private float heightStep = 2f;  // Stapgrootte om hoogte te veranderen
 
-
     private void OnEnable()
     {
         Debug.Log("StructurePlacer enabled");
@@ -62,11 +61,30 @@ public class StructurePlacer : MonoBehaviour
         return Quaternion.identity;
     }
 
-    public int PlaceStructure(GameObject objectToPlace, Vector3 position, Quaternion rotation)
+    public int PlaceStructure(GameObject objectToPlace, Vector3 position, Quaternion rotation, int gridIndex)
     {
         int freeIndex = GetFreeIndex();
         GameObject newObject = Instantiate(objectToPlace);
-        newObject.transform.SetParent(transform);
+
+        // Selecteer de juiste parent op basis van de gridIndex
+        Transform parentTransform;
+        switch (gridIndex)
+        {
+            case 0:
+                parentTransform = transform.Find("Child_1");
+                break;
+            case 1:
+                parentTransform = transform.Find("Child_2");
+                break;
+            case 2:
+                parentTransform = transform.Find("Child_3");
+                break;
+            default:
+                parentTransform = transform; // Fallback naar de root
+                break;
+        }
+
+        newObject.transform.SetParent(parentTransform);
 
         // Gebruik heightOffset voor de Y-positie
         Vector3 placementPosition = new Vector3(position.x, heightOffset, position.z);
@@ -78,6 +96,7 @@ public class StructurePlacer : MonoBehaviour
         newObject.transform.DOScaleY(1, scalingDelay);
         return freeIndex;
     }
+
 
     public void RemoveObjectAt(int index)
     {

@@ -30,6 +30,9 @@ public class PlacementManager : MonoBehaviour
     [SerializeField]
     private StructurePlacer structurePlacer;
 
+    [SerializeField]
+    private GridElevator gridElevator; // Verwijs naar het GridElevator-script
+
     CommandManager commandManager = new CommandManager();
 
     GridData gridData;
@@ -283,31 +286,23 @@ public class PlacementManager : MonoBehaviour
     /// <param name="isInWallObject"></param>
     public void PlaceStructureAt(SelectionResult selectionResult, PlacementGridData placementData, ItemData itemData)
     {
+        int gridIndex = gridElevator.GetCurrentIndex(); // Zorg dat GridElevator een methode heeft om de index op te halen
+
         for (int i = 0; i < selectionResult.selectedGridPositions.Count; i++)
         {
-            if (itemData.objectPlacementType.IsEdgePlacement())
-            {
-                int objectIndex = structurePlacer.PlaceStructure(
-                    itemData.prefab,
-                    selectionResult.selectedPositions[i],
-                    selectionResult.selectedPositionsObjectRotation[i]
-                );
-                placementData.AddEdgeObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
-            }
-            else
-            {
-                int objectIndex = structurePlacer.PlaceStructure(
-                    itemData.prefab,
-                    selectionResult.selectedPositions[i],
-                    selectionResult.selectedPositionsObjectRotation[i]
-                );
-                placementData.AddCellObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
-            }
+            int objectIndex = structurePlacer.PlaceStructure(
+                itemData.prefab,
+                selectionResult.selectedPositions[i],
+                selectionResult.selectedPositionsObjectRotation[i],
+                gridIndex // Geef de index mee
+            );
 
+            placementData.AddCellObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
         }
         buildingState.RefreshSelection();
         OnToggleUndo?.Invoke(true);
     }
+
 
     /// <summary>
     /// Removes a structre at a specific positions

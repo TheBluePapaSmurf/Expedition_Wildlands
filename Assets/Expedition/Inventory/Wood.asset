@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 38283f27b3c04af42a128f319db3d5d5, type: 3}
+  m_Name: Wood
+  m_EditorClassIdentifier: 
+  id: 8195be3a-2a2f-41bb-baf0-cbe20c4a363e
+  ItemName: Woood
+  isStackable: 1
+  Icon: {fileID: 150964140, guid: ea1649b72f0ae0c4caefa9f077a65d68, type: 3}

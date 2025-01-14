@@ -7772,8 +7772,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8edd43b89ca9a442a754c011d9c5161, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  grid: {fileID: 66052447}
-  gridRenderer: {fileID: 1012505259}
+  gridParent: {fileID: 1577258083}
   gridCellSize: {x: 0.5, y: 0.5, z: 0.5}
   defaultScale: {x: 10, y: 10}
   cellSizeParameter: _GridSize
@@ -9319,8 +9318,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc5ac81d916080049bac462b015eb464, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  targetObject: {fileID: 1577258083}
-  stepSize: 1
   increaseButton: {fileID: 1288620246}
   decreaseButton: {fileID: 153536333}
   structurePlacer: {fileID: 312845708}

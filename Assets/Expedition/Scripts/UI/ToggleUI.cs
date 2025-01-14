@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Events;
 
 public class ToggleUI : MonoBehaviour
 {
@@ -9,13 +10,15 @@ public class ToggleUI : MonoBehaviour
         public GameObject panel; // Het UI-paneel dat je wilt togglen
         public KeyCode toggleKey; // De toets om het paneel te togglen
         public List<GameObject> relatedObjects; // Gerelateerde GameObjects
+        public UnityEvent onToggleOn; // Acties bij het openen/activeren
+        public UnityEvent onToggleOff; // Acties bij het sluiten/deactiveren
+        public bool isToggled = false; // Houdt de toggle-status bij
     }
 
-    public List<UIPanel> uiPanels = new List<UIPanel>(); // Lijst van UI-panelen en toetsen
+    public List<UIPanel> uiPanels = new List<UIPanel>();
 
     void Update()
     {
-        // Loop door alle UI-panelen in de lijst
         foreach (var uiPanel in uiPanels)
         {
             if (Input.GetKeyDown(uiPanel.toggleKey))
@@ -29,9 +32,19 @@ public class ToggleUI : MonoBehaviour
     {
         if (uiPanel.panel != null)
         {
-            // Toggle het paneel
-            bool isPanelActive = !uiPanel.panel.activeSelf;
-            uiPanel.panel.SetActive(isPanelActive);
+            // Wissel de actieve status van het paneel
+            uiPanel.isToggled = !uiPanel.isToggled;
+            uiPanel.panel.SetActive(uiPanel.isToggled);
+
+            // Voer de juiste UnityEvent uit
+            if (uiPanel.isToggled)
+            {
+                uiPanel.onToggleOn?.Invoke(); // Bij openen/activeren
+            }
+            else
+            {
+                uiPanel.onToggleOff?.Invoke(); // Bij sluiten/deactiveren
+            }
 
             // Toggle de gerelateerde GameObjects
             if (uiPanel.relatedObjects != null)
@@ -41,11 +54,11 @@ public class ToggleUI : MonoBehaviour
                     if (obj != null)
                     {
                         // Wissel de actieve status van elk gerelateerd object
-                        bool isObjectActive = obj.activeSelf;
-                        obj.SetActive(!isObjectActive);
+                        obj.SetActive(!obj.activeSelf);
                     }
                 }
             }
         }
     }
+
 }

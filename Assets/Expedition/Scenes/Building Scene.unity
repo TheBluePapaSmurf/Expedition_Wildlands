@@ -910,6 +910,13 @@ MonoBehaviour:
     - {fileID: 1279045817}
     - {fileID: 800629092}
     - {fileID: 318678617}
+    onToggleOn:
+      m_PersistentCalls:
+        m_Calls: []
+    onToggleOff:
+      m_PersistentCalls:
+        m_Calls: []
+    isToggled: 0
 --- !u!114 &118342953
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2453,8 +2460,6 @@ MonoBehaviour:
   placedObjects: []
   scalingDelay: 0.3
   destroyDelay: 0.1
-  heightOffset: 0
-  heightStep: 1
 --- !u!1 &316339859
 GameObject:
   m_ObjectHideFlags: 0
@@ -5036,6 +5041,13 @@ MonoBehaviour:
     - {fileID: 1279045817}
     - {fileID: 800629092}
     - {fileID: 318678617}
+    onToggleOn:
+      m_PersistentCalls:
+        m_Calls: []
+    onToggleOff:
+      m_PersistentCalls:
+        m_Calls: []
+    isToggled: 0
 --- !u!114 &849577452
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7772,7 +7784,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e8edd43b89ca9a442a754c011d9c5161, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridParent: {fileID: 1577258083}
+  grid: {fileID: 0}
+  gridRenderer: {fileID: 0}
   gridCellSize: {x: 0.5, y: 0.5, z: 0.5}
   defaultScale: {x: 10, y: 10}
   cellSizeParameter: _GridSize
@@ -9318,10 +9331,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dc5ac81d916080049bac462b015eb464, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  targetObject: {fileID: 0}
+  stepSize: 2
   increaseButton: {fileID: 1288620246}
   decreaseButton: {fileID: 153536333}
   structurePlacer: {fileID: 312845708}
   currentIndex: 0
+  maxIndex: 2
 --- !u!114 &1482998562
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9457,7 +9473,6 @@ MonoBehaviour:
   floorPrefab: {fileID: 919132149155446097, guid: 6cc0efcc526f81d45bee5fca1840722f, type: 3}
   wallPrefab: {fileID: 454405300934370620, guid: 16bfb3862f6e6704f854cdb58d709081, type: 3}
   structurePlacer: {fileID: 312845708}
-  gridElevator: {fileID: 1482998561}
   removeStateFrame: {fileID: 898977590}
   destoryPreview: {fileID: 9179937301927065953, guid: 851c3ab931b411b4d9d87aef6493567d, type: 3}
   OnExitPlacementMode:

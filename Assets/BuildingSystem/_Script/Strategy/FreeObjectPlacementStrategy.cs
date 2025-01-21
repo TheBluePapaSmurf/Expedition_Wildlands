@@ -27,13 +27,15 @@ public class FreeObjectPlacementStrategy : SelectionStrategy
 
     public override bool ModifySelection(Vector3 mousePosition, SelectionData selectionData)
     {
-        Vector3Int tempPos = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
+        Grid activeGrid = gridManager.GetGrid(0);
+
+        Vector3Int tempPos = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
         if (lastDetectedPosition.TryUpdatingPositon(tempPos))
         {
             //Clear selection data
             selectionData.Clear();
 
-            selectionData.AddToWorldPositions(gridManager.GetWorldPosition(lastDetectedPosition.GetPosition()));
+            selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, lastDetectedPosition.GetPosition()));
 
             selectionData.AddToGridPositions(lastDetectedPosition.GetPosition());
 

@@ -1,9 +1,13 @@
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using Unity.Burst.CompilerServices;
 using UnityEngine;
 using UnityEngine.EventSystems;
 
 /// <summary>
-/// Input manager. Manages user inputs and raises events for interaction.
+/// Input manager. We could ponentialy split the Raycast functionality outside of it and add the camera input ehre
+/// to make it more universal and preserve Single Responsibility Rule better
 /// </summary>
 public class InputManager : MonoBehaviour
 {
@@ -15,112 +19,69 @@ public class InputManager : MonoBehaviour
     [SerializeField]
     private LayerMask placementLayermask;
 
-    public event Action OnMousePressed;
-    public event Action OnMouseReleased;
-    public event Action OnCancel;
-    public event Action OnUndo;
+    public event Action OnMousePressed, OnMouseReleased, OnCancle, OnUndo;
+
     public event Action<int> OnRotate;
+
     public event Action<bool> OnToggleDelete;
 
-    /// <summary>
-    /// Gets the position on the map that the mouse is pointing at.
-    /// </summary>
-    /// <returns>The selected map position as a Vector3.</returns>
+    public event Action<int> OnSwitchGrid;
+
+    [SerializeField]
+    private GridManager gridManager; // Referentie naar de GridManager
+
+    private int currentGridIndex = 0; // Houdt de huidige grid-index bij
+
     public Vector3 GetSelectedMapPosition()
     {
         Vector3 mousePos = Input.mousePosition;
         mousePos.z = sceneCamera.nearClipPlane;
         Ray ray = sceneCamera.ScreenPointToRay(mousePos);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 100, placementLayermask))
+        RaycastHit hit;
+        if (Physics.Raycast(ray, out hit, 100, placementLayermask))
         {
             lastPosition = hit.point;
         }
         return lastPosition;
     }
 
-    /// <summary>
-    /// Checks if the mouse is interacting with a UI element.
-    /// </summary>
-    /// <returns>True if interacting with UI, otherwise false.</returns>
     public bool IsInteractingWithUI()
         => EventSystem.current.IsPointerOverGameObject();
 
-    private void OnEnable()
-    {
-        // Optional debugging
-        Debug.Log("InputManager enabled");
-    }
-
-    private void OnDisable()
-    {
-        // Clean up if needed (e.g., disconnect custom input systems)
-        Debug.Log("InputManager disabled");
-    }
-
     private void Update()
     {
-        HandleKeyboardInputs();
-        HandleMouseInputs();
-    }
-
-    /// <summary>
-    /// Handles keyboard inputs.
-    /// </summary>
-    private void HandleKeyboardInputs()
-    {
         if (Input.GetKeyDown(KeyCode.Escape))
-        {
-            Debug.Log("Escape key pressed: triggering cancel event.");
-            OnCancel?.Invoke();
-        }
-
+            OnCancle?.Invoke();
         if (Input.GetKeyDown(KeyCode.R))
-        {
-            Debug.Log("R key pressed: triggering undo event.");
             OnUndo?.Invoke();
-        }
 
+        if (Input.GetMouseButtonDown(0))
+            OnMousePressed?.Invoke();
+        if (Input.GetMouseButtonUp(0))
+            OnMouseReleased?.Invoke();
         if (Input.GetKeyDown(KeyCode.Comma))
-        {
-            Debug.Log("Rotate left triggered.");
             OnRotate?.Invoke(-1);
-        }
-
         if (Input.GetKeyDown(KeyCode.Period))
-        {
-            Debug.Log("Rotate right triggered.");
             OnRotate?.Invoke(1);
-        }
 
         if (Input.GetKeyDown(KeyCode.LeftControl))
-        {
-            Debug.Log("Delete mode enabled.");
             OnToggleDelete?.Invoke(true);
-        }
-
         if (Input.GetKeyUp(KeyCode.LeftControl))
-        {
-            Debug.Log("Delete mode disabled.");
             OnToggleDelete?.Invoke(false);
-        }
-    }
 
-    /// <summary>
-    /// Handles mouse inputs.
-    /// </summary>
-    private void HandleMouseInputs()
-    {
-        if (Input.GetMouseButtonDown(0))
+        // Incrementeer grid
+        if (Input.GetKeyDown(KeyCode.Alpha2))
         {
-            Debug.Log("Mouse button pressed.");
-            OnMousePressed?.Invoke();
+            int maxGridIndex = gridManager.GetGridCount() - 1; // Haal de maximale index op
+            currentGridIndex = Mathf.Min(currentGridIndex + 1, maxGridIndex);
+            gridManager.SwitchGrid(currentGridIndex);
         }
 
-        if (Input.GetMouseButtonUp(0))
+        // Decrementeer grid
+        if (Input.GetKeyDown(KeyCode.Alpha1))
         {
-            Debug.Log("Mouse button released.");
-            OnMouseReleased?.Invoke();
+            currentGridIndex = Mathf.Max(currentGridIndex - 1, 0);
+            gridManager.SwitchGrid(currentGridIndex);
         }
     }
 }

@@ -18,9 +18,11 @@ public class WallPlacementStrategy : SelectionStrategy
 
     public override void StartSelection(Vector3 mousePosition, SelectionData selectionData)
     {
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op
+
         selectionData.Clear();
-        startposition = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
-        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(startposition.Value));
+        startposition = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
+        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, startposition.Value));
 
         selectionData.PlacementValidity = true;
 
@@ -32,7 +34,9 @@ public class WallPlacementStrategy : SelectionStrategy
 
     public override bool ModifySelection(Vector3 mousePosition, SelectionData selectionData)
     {
-        Vector3Int tempPos = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op
+
+        Vector3Int tempPos = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
         if (lastDetectedPosition.TryUpdatingPositon(tempPos))
         {
             selectionData.Clear();
@@ -41,23 +45,17 @@ public class WallPlacementStrategy : SelectionStrategy
                 List<Vector3Int> path = GridSelectionHelper.AStar(startposition.Value, tempPos, placementData);
 
                 Vector3 worldPos;
-                //We subtract 1 so that we place walls up to the cursor position (not on the position where the cursor is now)
                 for (int i = 0; i < path.Count - 1; i++)
                 {
-                    worldPos = gridManager.GetWorldPosition(path[i]);
+                    worldPos = gridManager.GetWorldPosition(activeGrid, path[i]);
                     selectionData.AddToWorldPositions(worldPos);
                     selectionData.AddToPreviewPositions(worldPos);
                     selectionData.AddToGridPositions(path[i]);
                 }
-                //For wall preview we need to add the last selected position to show the preview correctly
-                worldPos = gridManager.GetWorldPosition(lastDetectedPosition.lastPosition.Value);
+                worldPos = gridManager.GetWorldPosition(activeGrid, lastDetectedPosition.lastPosition.Value);
                 selectionData.AddToPreviewPositions(worldPos);
 
-                //We use here the path since we need the last position (coursor position) for rotation calculation
                 List<Quaternion> rotationValues = GridSelectionHelper.CalculateRotation(path);
-
-                //To correctly show wall preview we need to add the rotation for the last position on the path
-                //that was added earlier
                 rotationValues.Add(rotationValues[^1]);
 
                 selectionData.SetObjectRotation(rotationValues);
@@ -66,14 +64,14 @@ public class WallPlacementStrategy : SelectionStrategy
             }
             else
             {
-                selectionData.AddToWorldPositions(gridManager.GetWorldPosition(lastDetectedPosition.GetPosition()));
+                selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, lastDetectedPosition.GetPosition()));
                 selectionData.PlacementValidity = true;
-                //selectionData.AddToGridPositions(lastDetectedPosition.GetPosition());
             }
             return true;
         }
         return false;
     }
+
 
     protected override bool ValidatePlacement(SelectionData selectionData)
     {

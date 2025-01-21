@@ -20,7 +20,9 @@ public class BoxSelection : SelectionStrategy
         //This runs before the StartPosition is set (since it is used to update the preview)
         //So we need a separate branch of code that will add only 1 currently selected tile unless
         //the start position is populated
-        Vector3Int tempPos = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op
+
+        Vector3Int tempPos = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
         if (lastDetectedPosition.TryUpdatingPositon(tempPos))
         {
             //clear old selection
@@ -54,7 +56,7 @@ public class BoxSelection : SelectionStrategy
             else
             {
                 selectionData.AddToGridPositions(lastDetectedPosition.GetPosition());
-                selectionData.AddToWorldPositions(gridManager.GetWorldPosition(lastDetectedPosition.GetPosition()));
+                selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, lastDetectedPosition.GetPosition()));
             }
             selectionData.SetGridCheckRotation(selectionData.GetSelectedGridPositions().Select(rotation => Quaternion.identity).ToList());
 
@@ -154,9 +156,11 @@ public class BoxSelection : SelectionStrategy
 
     private void AddToSelection(Vector3Int position, SelectionData selectionData)
     {
+        Grid activeGrid = gridManager.GetGrid(0); // Gebruik de actieve grid (pas de index aan indien nodig)
         selectionData.AddToGridPositions(position);
-        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(position));
+        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, position));
     }
+
 
     /// <summary>
     /// Handles selecting first position where we want to place a floor cell
@@ -165,21 +169,24 @@ public class BoxSelection : SelectionStrategy
     /// <param name="selectionData"></param>
     public override void StartSelection(Vector3 mousePosition, SelectionData selectionData)
     {
+        Grid activeGrid = gridManager.GetGrid(0); // Gebruik de actieve grid (pas de index aan indien nodig)
+
         selectionData.Clear();
-        startposition = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
-        //Debug.Log($"Start position {startposition.Value}");
+        startposition = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
 
         selectionData.AddToGridPositions(startposition.Value);
-        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(startposition.Value));
+        selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, startposition.Value));
 
         selectionData.SetGridCheckRotation(selectionData.GetSelectedGridPositions().Select(rotation => Quaternion.identity).ToList());
 
         selectionData.PlacementValidity = ValidatePlacement(selectionData);
         lastDetectedPosition.TryUpdatingPositon(startposition.Value);
+
         Debug.Log($"Selection {lastDetectedPosition.GetPosition()}");
         if (selectionData.PlacementValidity == false)
             startposition = null;
     }
+
 
     protected override bool ValidatePlacement(SelectionData selectionData)
     {

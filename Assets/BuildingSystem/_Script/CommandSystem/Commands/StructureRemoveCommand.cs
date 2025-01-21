@@ -45,16 +45,16 @@ public class StructureRemoveCommand : ICommand
 
     private void GenerateUndoData()
     {
-        //We need to save all this data to be able to undo the remove operation
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op
+
         List<Vector3Int> occupiedCellsGridPositions = new();
         List<Vector3> occupiedCellsPosition = new();
         List<Quaternion> occupiedCellsRotation = new();
         List<Quaternion> occupiedCellsGridCheckRotation = new();
+
         if (itemData.objectPlacementType.IsEdgePlacement())
         {
-
             HashSet<Edge> checkedEdges = new HashSet<Edge>();
-            //We need to access all the edges to ocupy
             foreach (var pos in selectionResult.selectedGridPositions)
             {
                 int rotation = Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[0].eulerAngles.y);
@@ -64,51 +64,33 @@ public class StructureRemoveCommand : ICommand
                 {
                     if (checkedEdges.Contains(edge))
                         continue;
+
                     if (this.placementData.IsEdgeObjectAt(edge))
                     {
-                        int savedRotation = 270;
-                        if (rotation == 0 || rotation == 180)
-                            savedRotation = 0;
+                        int savedRotation = (rotation == 0 || rotation == 180) ? 0 : 270;
 
-                        List<Edge> edges =  this.placementData.GetEdgesOccupiedForEdgeObject(edge);
+                        List<Edge> edges = this.placementData.GetEdgesOccupiedForEdgeObject(edge);
                         checkedEdges.AddRange(edges);
 
-                        Vector3Int newOrigin = edges.OrderBy(e => e.smallerPoint.x).ThenBy(e => e.smallerPoint.z).First().smallerPoint;
+                        Vector3Int newOrigin = edges.OrderBy(e => e.smallerPoint.x)
+                                                    .ThenBy(e => e.smallerPoint.z)
+                                                    .First()
+                                                    .smallerPoint;
+
                         occupiedCellsRotation.Add(Quaternion.Euler(0, savedRotation, 0));
                         occupiedCellsGridCheckRotation.Add(Quaternion.Euler(0, savedRotation, 0));
                         occupiedCellsGridPositions.Add(newOrigin);
-                        occupiedCellsPosition.Add(this.gridManager.GetWorldPosition(newOrigin));
-
-                        ////If we have rotated the Edge objects we need to consider which edge vertex is actuall selected
-                        ////in the Remove State selection result (we can be selectiong from left to right but the Edge
-                        ////record saves the vertices from Right to Left - smaller first and bigger later)
-                        //Vector3Int newOriginVertex = edge.smallerPoint;
-                        //if (rotation == 90 || rotation == 180)
-                        //    newOriginVertex = edge.biggerPoint;
-
-                        ////If our selection doesnt incldue this edge we want to ignore this edge as it is probably
-                        ////part of a bigget edge object plcamanet
-                        //if (this.selectionResult.selectedGridPositions.Contains(newOriginVertex) == false)
-                        //    continue;
-
-                        ////Even though the original edge object was placed with rotation  0 if we are removing this edge object
-                        ////by selecting from Right to Left (rotation = 180) we can place it again with that rotation 
-                        ////if we want to Undo the remove command
-                        //occupiedCellsGridPositions.Add(newOriginVertex);
-                        //occupiedCellsPosition.Add(this.gridManager.GetWorldPosition(newOriginVertex));
-                        ////For the wall placement we set the same rotation for cell rotation and the Grid check rotation
-                        //occupiedCellsRotation.Add(Quaternion.Euler(0, rotation, 0));
-                        //occupiedCellsGridCheckRotation.Add(Quaternion.Euler(0, rotation, 0));
+                        occupiedCellsPosition.Add(this.gridManager.GetWorldPosition(activeGrid, newOrigin));
                     }
                 }
             }
         }
         else
         {
-
             foreach (var pos in selectionResult.selectedGridPositions)
             {
                 List<Vector3Int> cellsToCheck = this.placementData.GetCellPositions(pos, itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[0].eulerAngles.y));
+
                 foreach (var cell in cellsToCheck)
                 {
                     if (this.placementData.IsCellObjectAt(cell) && this.selectionResult.selectedGridPositions.Contains(cell))
@@ -116,7 +98,7 @@ public class StructureRemoveCommand : ICommand
                         Vector3Int placementOriginPosition = this.placementData.GetOriginForCellObject(cell).Value;
                         occupiedCellsGridPositions.Add(placementOriginPosition);
                         int index = selectionResult.selectedGridPositions.IndexOf(cell);
-                        occupiedCellsPosition.Add(this.gridManager.GetWorldPosition(placementOriginPosition));
+                        occupiedCellsPosition.Add(this.gridManager.GetWorldPosition(activeGrid, placementOriginPosition));
                         occupiedCellsRotation.Add(selectionResult.selectedPositionsObjectRotation[index]);
                         occupiedCellsGridCheckRotation.Add(selectionResult.selectedPositionGridCheckRotation[index]);
                     }
@@ -124,7 +106,6 @@ public class StructureRemoveCommand : ICommand
             }
         }
 
-        //We save the existing objects data in case we need to undo this remvoe step
         selectionResultToRestore = new SelectionResult
         {
             isEdgeStructure = itemData.objectPlacementType.IsEdgePlacement(),
@@ -135,6 +116,7 @@ public class StructureRemoveCommand : ICommand
             selectedPositionsObjectRotation = occupiedCellsRotation
         };
     }
+
 
     public void Undo()
     {

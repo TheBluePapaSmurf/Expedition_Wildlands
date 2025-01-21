@@ -45,11 +45,13 @@ public class StructureSwapCommand : ICommand
         //We need this data to create the SelectionResult object that will work with our placement / remove functionality
         List<Vector3Int> positionsToClear = new();
         List<Vector3> placementPositions = new();
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op (pas de index aan indien nodig)
         foreach (Edge edge in edgesOccupied)
         {
             positionsToClear.Add(edge.smallerPoint);
-            placementPositions.Add(gridManager.GetWorldPosition(edge.smallerPoint));
+            placementPositions.Add(gridManager.GetWorldPosition(activeGrid, edge.smallerPoint));
         }
+
         List<Quaternion> newRotationValues = positionsToClear.Select(x => newRotation).ToList();
 
 

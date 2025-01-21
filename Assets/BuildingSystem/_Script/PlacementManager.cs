@@ -2,6 +2,7 @@ using CommandSystem;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.Events;
 
@@ -30,9 +31,6 @@ public class PlacementManager : MonoBehaviour
     [SerializeField]
     private StructurePlacer structurePlacer;
 
-    [SerializeField]
-    private GridElevator gridElevator; // Verwijs naar het GridElevator-script
-
     CommandManager commandManager = new CommandManager();
 
     GridData gridData;
@@ -50,36 +48,15 @@ public class PlacementManager : MonoBehaviour
     public UnityEvent OnExitPlacementMode, OnPlaceConstructionObject, OnPlaceFurnitureObject, OnRemoveObject, OnUndo, OnRotate, OnExitMovement, OnMovementStateEntered;
     public UnityEvent<bool> OnToggleUndo;
 
-    private void Awake()
+    private void Start()
     {
-        // Initialize objects that are critical for operation
-        gridData = new GridData(gridManager.GridSize);
-    }
+        gridData = new GridData(gridManager.GetGridSize(0)); // Voor de eerste grid
+        gridManager.ToggleGrid(0, false); // Activeer de eerste grid
 
-    private void ConnectInputEvents()
-    {
-        input.OnMousePressed += HandleSelectionStarted;
-        input.OnMouseReleased += HandleSelectionFinished;
-        input.OnCancel += CancelState;
-        input.OnUndo += TryUndoLastPlacement;
-        input.OnRotate += HandleRotation;
-    }
 
-    private void OnEnable()
-    {
-        ConnectInputEvents();
+        input.OnToggleDelete += HandleDeleteAction;
+        input.OnCancle += () => OnExitPlacementMode?.Invoke();
     }
-
-    private void OnDisable()
-    {
-        // Verwijder gekoppelde events
-        input.OnMousePressed -= HandleSelectionStarted;
-        input.OnMouseReleased -= HandleSelectionFinished;
-        input.OnCancel -= CancelState;
-        input.OnUndo -= TryUndoLastPlacement;
-        input.OnRotate -= HandleRotation;
-    }
-
 
     /// <summary>
     /// Creates a placement State connects it to the Input system
@@ -99,7 +76,7 @@ public class PlacementManager : MonoBehaviour
         buildingState = new PlacingObjectsState(gridManager, gridData, itemData);
         buildingState.OnFinished += TryPlacingObjects;
         buildingState.OnSelectionChanged += MovePreview;
-        gridManager.ToggleGrid(true);
+        gridManager.ToggleGrid(0, true); // Activeer de eerste grid
         placementPrevew.StartShowingPreview(itemData.previewObject);
         ConnectInputToBuildingState();
     }
@@ -111,7 +88,7 @@ public class PlacementManager : MonoBehaviour
     {
         input.OnMousePressed += HandleSelectionStarted;
         input.OnMouseReleased += HandleSelectionFinished;
-        input.OnCancel += CancelState;
+        input.OnCancle += CancelState;
         input.OnUndo += TryUndoLastPlacement;
         input.OnRotate += HandleRotation;
     }
@@ -234,12 +211,12 @@ public class PlacementManager : MonoBehaviour
         OnToggleUndo?.Invoke(false);
         input.OnMousePressed -= HandleSelectionStarted;
         input.OnMouseReleased -= HandleSelectionFinished;
-        input.OnCancel -= CancelState;
+        input.OnCancle -= CancelState;
         input.OnUndo -= TryUndoLastPlacement;
         input.OnRotate -= HandleRotation;
         commandManager.ClearCommandsList();
         placementPrevew.StopShowingPreview();
-        gridManager.ToggleGrid(false);
+        gridManager.ToggleGrid(0, false); // Activeer de eerste grid
     }
 
     /// <summary>
@@ -262,7 +239,7 @@ public class PlacementManager : MonoBehaviour
             buildingState.SelectionData.Rotation = previousRotation;
             buildingState.OnFinished += TryRemovingObject;
             buildingState.OnSelectionChanged += MovePreview;
-            gridManager.ToggleGrid(true);
+            gridManager.ToggleGrid(0, true);
             if (itemData.objectPlacementType.IsObjectPlacement())
                 placementPrevew.StartShowingPreview(destoryPreview, true);
             else
@@ -286,23 +263,23 @@ public class PlacementManager : MonoBehaviour
     /// <param name="isInWallObject"></param>
     public void PlaceStructureAt(SelectionResult selectionResult, PlacementGridData placementData, ItemData itemData)
     {
-        int gridIndex = gridElevator.GetCurrentIndex(); // Zorg dat GridElevator een methode heeft om de index op te halen
-
         for (int i = 0; i < selectionResult.selectedGridPositions.Count; i++)
         {
-            int objectIndex = structurePlacer.PlaceStructure(
-                itemData.prefab,
-                selectionResult.selectedPositions[i],
-                selectionResult.selectedPositionsObjectRotation[i],
-                gridIndex // Geef de index mee
-            );
+            if (itemData.objectPlacementType.IsEdgePlacement())
+            {
+                int objectIndex = structurePlacer.PlaceStructure(itemData.prefab, selectionResult.selectedPositions[i], selectionResult.selectedPositionsObjectRotation[i], 0);
+                placementData.AddEdgeObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
+            }
+            else
+            {
+                int objectIndex = structurePlacer.PlaceStructure(itemData.prefab, selectionResult.selectedPositions[i], selectionResult.selectedPositionsObjectRotation[i], 0);
+                placementData.AddCellObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
+            }
 
-            placementData.AddCellObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
         }
         buildingState.RefreshSelection();
         OnToggleUndo?.Invoke(true);
     }
-
 
     /// <summary>
     /// Removes a structre at a specific positions
@@ -401,9 +378,9 @@ public class PlacementManager : MonoBehaviour
         CancelState();
         previousPosition = null;
         previousRotation = Quaternion.identity;
-        gridManager.ToggleGrid(true);
+        gridManager.ToggleGrid(0, true);
         movement = true;
-        input.OnCancel += CancelMovement;
+        input.OnCancle += CancelMovement;
         input.OnMousePressed += TrySelectingObjectToMove;
     }
 
@@ -416,8 +393,9 @@ public class PlacementManager : MonoBehaviour
         if (input.IsInteractingWithUI())
             return;
         Vector3 selectedPosition = input.GetSelectedMapPosition();
-        previousPosition = gridManager.GetCellPosition(selectedPosition, PlacementType.FreePlacedObject);
-        
+        Grid activeGrid = gridManager.GetGrid(0); // Gebruik de eerste grid
+        previousPosition = gridManager.GetCellPosition(activeGrid, selectedPosition, PlacementType.FreePlacedObject);
+
         //Check if we have clicked on the selection grid or outside of it
         if (previousPosition.HasValue == false)
         {
@@ -441,7 +419,7 @@ public class PlacementManager : MonoBehaviour
                 isEdgeStructure = false,
                 placementValidity = true,
                 selectedGridPositions = new List<Vector3Int> { previousPosition.Value },
-                selectedPositions = new List<Vector3> { gridManager.GetWorldPosition(previousPosition.Value)},
+                selectedPositions = new List<Vector3> { gridManager.GetWorldPosition(activeGrid, previousPosition.Value) },
                 selectedPositionGridCheckRotation = new List<Quaternion> { Quaternion.identity },
                 selectedPositionsObjectRotation = new List<Quaternion> { Quaternion.identity }
             };
@@ -492,10 +470,10 @@ public class PlacementManager : MonoBehaviour
         if (previousPosition != null)
             PlaceMovedObjectBackinPlace();
         CancelState();
-        gridManager.ToggleGrid(false);
+        gridManager.ToggleGrid(0, false);
         OnExitMovement?.Invoke();
         movement = false;
-        input.OnCancel -= CancelMovement;
+        input.OnCancle -= CancelMovement;
         input.OnMousePressed -= TrySelectingObjectToMove;
     }
 
@@ -504,12 +482,13 @@ public class PlacementManager : MonoBehaviour
     /// </summary>
     private void PlaceMovedObjectBackinPlace()
     {
+        Grid activeGrid = gridManager.GetGrid(0); // Gebruik de eerste grid
         SelectionResult result = new SelectionResult
         {
             isEdgeStructure = false,
             placementValidity = true,
             selectedGridPositions = new List<Vector3Int> { previousPosition.Value },
-            selectedPositions = new List<Vector3> { gridManager.GetWorldPosition(previousPosition.Value) },
+            selectedPositions = new List<Vector3> { gridManager.GetWorldPosition(activeGrid, previousPosition.Value) },
             selectedPositionGridCheckRotation = new List<Quaternion> { previousRotation },
             selectedPositionsObjectRotation = new List<Quaternion> { previousRotation }
         };

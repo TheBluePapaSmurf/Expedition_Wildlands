@@ -13,23 +13,25 @@ public class NearWallPlacementStrategy : FreeObjectPlacementStrategy
 
     public override bool ModifySelection(Vector3 mousePosition, SelectionData selectionData)
     {
-        Vector3Int tempPos = gridManager.GetCellPosition(mousePosition, selectionData.PlacedItemData.objectPlacementType);
+        Grid activeGrid = gridManager.GetGrid(0); // Haal de actieve grid op
+
+        Vector3Int tempPos = gridManager.GetCellPosition(activeGrid, mousePosition, selectionData.PlacedItemData.objectPlacementType);
         if (lastDetectedPosition.TryUpdatingPositon(tempPos))
         {
-            //Clear selection data
+            // Clear selection data
             selectionData.Clear();
 
-            selectionData.AddToWorldPositions(gridManager.GetWorldPosition(lastDetectedPosition.GetPosition()));
+            selectionData.AddToWorldPositions(gridManager.GetWorldPosition(activeGrid, lastDetectedPosition.GetPosition()));
 
             selectionData.AddToGridPositions(lastDetectedPosition.GetPosition());
 
             selectionData.PlacementValidity = ValidatePlacement(selectionData);
 
-
             return true;
         }
         return false;
     }
+
     protected override bool ValidatePlacement(SelectionData selectionData)
     {
         //Checks if the position is valid

@@ -50,6 +50,8 @@ public class GridManager : MonoBehaviour
 
     private int activeGridIndex = 0;
 
+    public int ActiveGridIndex => activeGridIndex;
+
     [SerializeField]
     private InputManager inputManager;
 
@@ -139,6 +141,16 @@ public class GridManager : MonoBehaviour
         return grids.Count;
     }
 
+    public float GetGridHeight(int gridIndex)
+    {
+        if (gridIndex < 0 || gridIndex >= grids.Count)
+        {
+            Debug.LogError("Invalid grid index.");
+            return 0f;
+        }
+
+        return grids[gridIndex].gridRenderer.transform.position.y;
+    }
 
     /// <summary>
     /// Toggles visibility of a specific grid.

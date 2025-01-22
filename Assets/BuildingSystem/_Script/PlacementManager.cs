@@ -29,7 +29,9 @@ public class PlacementManager : MonoBehaviour
     private GameObject floorPrefab, wallPrefab;
 
     [SerializeField]
-    private StructurePlacer structurePlacer;
+    private List<StructurePlacer> structurePlacers = new List<StructurePlacer>();
+
+    private int activePlacerIndex = 0;
 
     CommandManager commandManager = new CommandManager();
 
@@ -261,25 +263,64 @@ public class PlacementManager : MonoBehaviour
     /// <param name="placementData"></param>
     /// <param name="itemData"></param>
     /// <param name="isInWallObject"></param>
+    /// 
+    public void SwitchStructurePlacer(int newPlacerIndex)
+    {
+        if (newPlacerIndex < 0 || newPlacerIndex >= structurePlacers.Count)
+        {
+            Debug.LogWarning("Invalid StructurePlacer index.");
+            return;
+        }
+
+        activePlacerIndex = newPlacerIndex;
+        Debug.Log($"Switched to StructurePlacer {activePlacerIndex}");
+    }
+
+    public int GetStructurePlacerCount()
+    {
+        return structurePlacers.Count;
+    }
+
     public void PlaceStructureAt(SelectionResult selectionResult, PlacementGridData placementData, ItemData itemData)
     {
+        var activePlacer = structurePlacers[activePlacerIndex]; // Gebruik de actieve StructurePlacer
+
+        // Haal de hoogte van de actieve grid op
+        float gridHeight = gridManager.GetGridHeight(gridManager.ActiveGridIndex);
+
         for (int i = 0; i < selectionResult.selectedGridPositions.Count; i++)
         {
-            if (itemData.objectPlacementType.IsEdgePlacement())
-            {
-                int objectIndex = structurePlacer.PlaceStructure(itemData.prefab, selectionResult.selectedPositions[i], selectionResult.selectedPositionsObjectRotation[i], 0);
-                placementData.AddEdgeObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
-            }
-            else
-            {
-                int objectIndex = structurePlacer.PlaceStructure(itemData.prefab, selectionResult.selectedPositions[i], selectionResult.selectedPositionsObjectRotation[i], 0);
-                placementData.AddCellObject(objectIndex, itemData.ID, selectionResult.selectedGridPositions[i], itemData.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
-            }
+            // Haal de basishoogte van het object op (indien nodig)
+            float objectBaseHeight = itemData.prefab.transform.position.y;
 
+            // Bereken de uiteindelijke hoogte
+            float finalHeight = gridHeight + objectBaseHeight;
+
+            // Plaats het object op de juiste hoogte
+            int objectIndex = activePlacer.PlaceStructure(
+                itemData.prefab,
+                new Vector3(
+                    selectionResult.selectedPositions[i].x,
+                    finalHeight,
+                    selectionResult.selectedPositions[i].z
+                ),
+                selectionResult.selectedPositionsObjectRotation[i],
+                finalHeight
+            );
+
+            placementData.AddCellObject(
+                objectIndex,
+                itemData.ID,
+                selectionResult.selectedGridPositions[i],
+                itemData.size,
+                Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y)
+            );
         }
+
         buildingState.RefreshSelection();
         OnToggleUndo?.Invoke(true);
     }
+
 
     /// <summary>
     /// Removes a structre at a specific positions
@@ -288,31 +329,45 @@ public class PlacementManager : MonoBehaviour
     /// <param name="placementData"></param>
     public void RemoveStructureAt(SelectionResult selectionResult, PlacementGridData placementData)
     {
+        // Gebruik de actieve StructurePlacer
+        var activePlacer = structurePlacers[activePlacerIndex];
+
         for (int i = 0; i < selectionResult.selectedGridPositions.Count; i++)
         {
             if (selectionResult.isEdgeStructure)
             {
-                int index = placementData.GetIndexForEdgeObject(selectionResult.selectedGridPositions[i], Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
+                int index = placementData.GetIndexForEdgeObject(
+                    selectionResult.selectedGridPositions[i],
+                    Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y)
+                );
+
                 if (index > -1)
                 {
-                    placementData.RemoveEdgeObject(selectionResult.selectedGridPositions[i], selectionResult.size, Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y));
-                    structurePlacer.RemoveObjectAt(index);
+                    placementData.RemoveEdgeObject(
+                        selectionResult.selectedGridPositions[i],
+                        selectionResult.size,
+                        Mathf.RoundToInt(selectionResult.selectedPositionGridCheckRotation[i].eulerAngles.y)
+                    );
+
+                    activePlacer.RemoveObjectAt(index); // Gebruik de actieve placer
                 }
             }
             else
             {
                 int index = placementData.GetIndexForCellObject(selectionResult.selectedGridPositions[i]);
+
                 if (index > -1)
                 {
                     placementData.RemoveCellObject(selectionResult.selectedGridPositions[i]);
-                    structurePlacer.RemoveObjectAt(index);
+                    activePlacer.RemoveObjectAt(index); // Gebruik de actieve placer
                 }
             }
-
         }
+
         buildingState.RefreshSelection();
         OnToggleUndo?.Invoke(true);
     }
+
 
     /// <summary>
     /// Selects the first position that we will use as selection.
@@ -392,17 +447,19 @@ public class PlacementManager : MonoBehaviour
     {
         if (input.IsInteractingWithUI())
             return;
+
         Vector3 selectedPosition = input.GetSelectedMapPosition();
         Grid activeGrid = gridManager.GetGrid(0); // Gebruik de eerste grid
         previousPosition = gridManager.GetCellPosition(activeGrid, selectedPosition, PlacementType.FreePlacedObject);
 
-        //Check if we have clicked on the selection grid or outside of it
+        // Controleer of we op een geldig object hebben geklikt
         if (previousPosition.HasValue == false)
         {
             Debug.Log("Clicked outside of the selection grid");
             return;
         }
-        //Get the correct placemet position (important for bigger X direction size)
+
+        // Haal de juiste objectpositie op
         previousPosition = gridData.ObjectPlacementData.GetOriginForCellObject(previousPosition.Value);
         if (previousPosition.HasValue == false || gridData.ObjectPlacementData.IsCellObjectAt(previousPosition.Value) == false)
         {
@@ -411,9 +468,9 @@ public class PlacementManager : MonoBehaviour
         }
         else
         {
-            
             Debug.Log("Selected a ");
             input.OnMousePressed -= TrySelectingObjectToMove;
+
             SelectionResult result = new SelectionResult
             {
                 isEdgeStructure = false,
@@ -423,18 +480,20 @@ public class PlacementManager : MonoBehaviour
                 selectedPositionGridCheckRotation = new List<Quaternion> { Quaternion.identity },
                 selectedPositionsObjectRotation = new List<Quaternion> { Quaternion.identity }
             };
+
             itemData = structuresData.GetItemWithID(gridData.ObjectPlacementData.GetStructureIDForCellObject(previousPosition.Value));
 
-
+            // Gebruik de actieve StructurePlacer
+            var activePlacer = structurePlacers[activePlacerIndex];
             int gameObjectIndex = gridData.ObjectPlacementData.GetIndexForCellObject(previousPosition.Value);
-            previousRotation = structurePlacer.GetObjectsRotation(gameObjectIndex);
+            previousRotation = activePlacer.GetObjectsRotation(gameObjectIndex); // Gebruik de actieve StructurePlacer
 
             Debug.Log($"Selected a {itemData.name}");
             buildingState = new PlacingObjectsState(gridManager, gridData, itemData);
             buildingState.SelectionData.Rotation = previousRotation;
             TryRemovingObject(result);
 
-            //Prepare the MovementState
+            // Voorbereiden op de MovementState
             buildingState.OnFinished += (selectionResult) =>
             {
                 TryPlacingObjects(selectionResult);
@@ -443,10 +502,9 @@ public class PlacementManager : MonoBehaviour
             placementPrevew.StartShowingPreview(itemData.previewObject);
             buildingState.OnSelectionChanged += MovePreview;
             input.OnMouseReleased += TryMovingObject;
-
-
         }
     }
+
 
     /// <summary>
     /// Connects the input to a PlacingObjectsState while removing the connections to movement logic

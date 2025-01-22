@@ -32,6 +32,11 @@ public class InputManager : MonoBehaviour
 
     private int currentGridIndex = 0; // Houdt de huidige grid-index bij
 
+    [SerializeField]
+    private PlacementManager placementManager;
+
+    private int currentPlacerIndex = 0;
+
     public Vector3 GetSelectedMapPosition()
     {
         Vector3 mousePos = Input.mousePosition;
@@ -75,6 +80,10 @@ public class InputManager : MonoBehaviour
             int maxGridIndex = gridManager.GetGridCount() - 1; // Haal de maximale index op
             currentGridIndex = Mathf.Min(currentGridIndex + 1, maxGridIndex);
             gridManager.SwitchGrid(currentGridIndex);
+
+            int maxPlacerIndex = placementManager.GetStructurePlacerCount() - 1;
+            currentPlacerIndex = Mathf.Min(currentPlacerIndex + 1, maxPlacerIndex);
+            placementManager.SwitchStructurePlacer(currentPlacerIndex);
         }
 
         // Decrementeer grid
@@ -82,6 +91,9 @@ public class InputManager : MonoBehaviour
         {
             currentGridIndex = Mathf.Max(currentGridIndex - 1, 0);
             gridManager.SwitchGrid(currentGridIndex);
+
+            currentPlacerIndex = Mathf.Max(currentPlacerIndex - 1, 0);
+            placementManager.SwitchStructurePlacer(currentPlacerIndex);
         }
     }
 }

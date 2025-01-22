@@ -48,11 +48,13 @@ public class StructurePlacer : MonoBehaviour
         int freeIndex = GetFreeIndex();
         GameObject newObject = Instantiate(objectToPlace);
         newObject.transform.SetParent(transform);
+
+        // Gebruik de Y-hoogte van de specifieke grid of object
         Vector3 placementPosition = new Vector3(position.x, yHeight, position.z);
         newObject.transform.position = placementPosition;
 
         newObject.transform.GetChild(0).rotation = rotation;
-        newObject.transform.localScale = new Vector3(1,0,1);
+        newObject.transform.localScale = new Vector3(1, 0, 1);
         placedObjects[freeIndex] = newObject;
         newObject.transform.DOScaleY(1, scalingDelay);
         return freeIndex;

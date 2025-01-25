@@ -84,9 +84,11 @@ public class InputManager : MonoBehaviour
             int maxPlacerIndex = placementManager.GetStructurePlacerCount() - 1;
             currentPlacerIndex = Mathf.Min(currentPlacerIndex + 1, maxPlacerIndex);
             placementManager.SwitchStructurePlacer(currentPlacerIndex);
+
+            // Update active/inactive StructurePlacers
+            placementManager.UpdateStructurePlacers(currentPlacerIndex);
         }
 
-        // Decrementeer grid
         if (Input.GetKeyDown(KeyCode.Alpha1))
         {
             currentGridIndex = Mathf.Max(currentGridIndex - 1, 0);
@@ -94,6 +96,9 @@ public class InputManager : MonoBehaviour
 
             currentPlacerIndex = Mathf.Max(currentPlacerIndex - 1, 0);
             placementManager.SwitchStructurePlacer(currentPlacerIndex);
+
+            // Update active/inactive StructurePlacers
+            placementManager.UpdateStructurePlacers(currentPlacerIndex);
         }
     }
 }

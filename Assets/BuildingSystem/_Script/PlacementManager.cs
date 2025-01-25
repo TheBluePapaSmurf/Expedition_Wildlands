@@ -101,7 +101,20 @@ public class PlacementManager : MonoBehaviour
         OnRotate?.Invoke();
     }
 
-
+    public void UpdateStructurePlacers(int currentPlacerIndex)
+    {
+        for (int i = 0; i < structurePlacers.Count; i++)
+        {
+            if (i <= currentPlacerIndex)
+            {
+                structurePlacers[i].gameObject.SetActive(true);
+            }
+            else
+            {
+                structurePlacers[i].gameObject.SetActive(false);
+            }
+        }
+    }
 
     /// <summary>
     /// Created anf invokes a Command responsible for placing objects and undoing placement

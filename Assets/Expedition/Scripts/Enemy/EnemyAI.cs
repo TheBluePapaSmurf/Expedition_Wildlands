@@ -199,16 +199,21 @@ public class EnemyAI : MonoBehaviour
     {
         if (player && Vector3.Distance(transform.position, player.position) <= detectionRadius)
         {
+            Debug.Log("Player within detection radius.");
             Vector3 dirToPlayer = (player.position - transform.position).normalized;
             float angle = Vector3.Angle(transform.forward, dirToPlayer);
 
             if (angle <= detectionAngle / 2) // Check if within field of view
             {
+                Debug.Log("Player within detection angle.");
                 RaycastHit hit;
-                if (Physics.Raycast(transform.position, dirToPlayer, out hit, detectionRadius))
+                int layerMask = 1 << LayerMask.NameToLayer("Player"); // Assuming the player is on a layer named "Player"
+
+                if (Physics.Raycast(transform.position, dirToPlayer, out hit, detectionRadius, layerMask))
                 {
                     if (hit.transform == player)
                     {
+                        Debug.Log("Player detected by raycast.");
                         if (Vector3.Distance(transform.position, player.position) <= (enemyType == EnemyType.Melee ? attackRange : rangedAttackRange))
                         {
                             Debug.Log("Player in attack range - attacking!");

@@ -30,7 +30,6 @@ namespace BDE.Expedition.PlayerControls
         private Animator currentAnimator;
         private float verticalVelocity = 0.0f;
         private int jumpCount = 0;
-        private float jumpButtonHoldTime = 0f;
         private bool isGrounded;
         private float coyoteTimeCounter;
         private Vector3 currentVelocity;

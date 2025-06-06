@@ -8,7 +8,7 @@ using BDE.Expedition.PlayerControls;
 public class SaveSystem : MonoBehaviour
 {
     [Header("SaveSystem mag alleen in de Main menu geplaatst worden.")]
-    
+
     public GameObject playerPrefab;
     public string saveFileName = "playerData.es3";
     public int sceneIndex = 1;
@@ -60,11 +60,13 @@ public class SaveSystem : MonoBehaviour
         {
             PlayerMovement playerMovement = playerObject.GetComponent<PlayerMovement>();
             PlayerHealth playerHealth = playerObject.GetComponent<PlayerHealth>();
+            CoinCollector coinCollector = playerObject.GetComponent<CoinCollector>();
 
-            PlayerInventory inventory = FindObjectOfType<PlayerInventory>();
-            if (inventory != null)
+            // Save coin data
+            if (coinCollector != null)
             {
-                inventory.SaveInventory();
+                ES3.Save("coins", coinCollector.GetCoinCount(), saveFileName);
+                Debug.Log($"Coins saved: {coinCollector.GetCoinCount()}");
             }
 
             if (playerMovement != null && playerHealth != null)
@@ -72,7 +74,7 @@ public class SaveSystem : MonoBehaviour
                 ES3.Save("sceneIndex", currentSceneIndex, saveFileName);
                 ES3.Save("position", playerMovement.transform.position, saveFileName);
                 playerHealth.SaveHealth(); // Opslaan van gezondheid
-                Debug.Log("Game saved with player position, scene index, and health.");
+                Debug.Log("Game saved with player position, scene index, health, and coins.");
             }
             else
             {
@@ -91,18 +93,11 @@ public class SaveSystem : MonoBehaviour
         if (ES3.FileExists(saveFileName) && ES3.KeyExists("sceneIndex", saveFileName))
         {
             int savedSceneIndex = ES3.Load<int>("sceneIndex", saveFileName);
-            PlayerMovement.isGameLoading = true;  // Zet dit hier
             StartCoroutine(LoadGameCoroutine(savedSceneIndex));
         }
         else
         {
             Debug.LogError("No saved scene data found.");
-        }
-
-        PlayerInventory inventory = FindObjectOfType<PlayerInventory>();
-        if (inventory != null)
-        {
-            inventory.LoadInventory();
         }
     }
 
@@ -133,21 +128,27 @@ public class SaveSystem : MonoBehaviour
         PlayerHealth playerHealth = playerObject.GetComponent<PlayerHealth>();
         if (playerHealth != null)
         {
-            playerHealth.LoadHealth();  // Zorg dat deze regel correct wordt uitgevoerd.
+            playerHealth.LoadHealth();
         }
         else
         {
             Debug.LogError("PlayerHealth component not found on the Player object.");
         }
 
-        PlayerInventory inventory = playerObject.GetComponent<PlayerInventory>();
-        if (inventory != null)
+        // Load coin data
+        CoinCollector coinCollector = playerObject.GetComponent<CoinCollector>();
+        if (coinCollector != null)
         {
-            inventory.LoadInventory();
+            if (ES3.KeyExists("coins", saveFileName))
+            {
+                int savedCoins = ES3.Load<int>("coins", saveFileName);
+                coinCollector.LoadCoins(savedCoins);
+                Debug.Log($"Coins loaded: {savedCoins}");
+            }
         }
         else
         {
-            Debug.LogError("PlayerInventory component not found on the Player object.");
+            Debug.LogError("CoinCollector component not found on the Player object.");
         }
     }
 }

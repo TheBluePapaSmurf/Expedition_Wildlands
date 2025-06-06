@@ -2,13 +2,15 @@ using UnityEngine;
 
 public class CoinPickup : MonoBehaviour
 {
+    [Header("Coin Settings")]
     public int value = 1;
     public Vector3 rotationSpeed = new Vector3(0, 100, 0); // Aanpassen naar gewenste rotatiesnelheid
+
+    [Header("Effects")]
+    public ParticleSystem pickupEffect;
+
     private AudioSource audioSource;
     private bool hasBeenPickedUp = false;
-
-    // Voeg een referentie naar het Particle System toe
-    public ParticleSystem pickupEffect;
 
     void Start()
     {
@@ -32,7 +34,7 @@ public class CoinPickup : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") && !hasBeenPickedUp)
         {
             CollectCoin(other);
         }
@@ -40,27 +42,51 @@ public class CoinPickup : MonoBehaviour
 
     void CollectCoin(Collider player)
     {
-        PlayerInventory inventory = player.GetComponent<PlayerInventory>();
-        if (inventory != null)
+        // Updated to use CoinCollector instead of PlayerInventory
+        CoinCollector coinCollector = player.GetComponent<CoinCollector>();
+        if (coinCollector != null)
         {
-            inventory.AddCoins(value);
+            coinCollector.CollectCoin(value);
             hasBeenPickedUp = true;
             PlayPickupSoundAndDestroy();
+        }
+        else
+        {
+            Debug.LogError("CoinCollector component not found on Player!");
         }
     }
 
     private void PlayPickupSoundAndDestroy()
     {
+        // Hide visual components immediately
+        HideObjectComponents();
+
+        // Play effects
+        PlayPickupEffects();
+
+        // Destroy after audio finishes (or immediately if no audio)
+        float destroyDelay = 0.1f; // Default short delay
+
+        if (audioSource != null && audioSource.clip != null)
+        {
+            destroyDelay = audioSource.clip.length;
+        }
+
+        Destroy(gameObject, destroyDelay);
+    }
+
+    private void PlayPickupEffects()
+    {
+        // Play audio effect from AudioSource component only
         if (audioSource != null && audioSource.clip != null)
         {
             audioSource.Play();
-            HideObjectComponents();
-            // Speel het particle effect af
-            if (pickupEffect != null)
-            {
-                pickupEffect.Play();
-            }
-            Destroy(gameObject, audioSource.clip.length);
+        }
+
+        // Play particle effect
+        if (pickupEffect != null)
+        {
+            pickupEffect.Play();
         }
     }
 
@@ -68,6 +94,7 @@ public class CoinPickup : MonoBehaviour
     {
         Renderer renderer = GetComponent<Renderer>();
         if (renderer != null) renderer.enabled = false;
+
         Collider collider = GetComponent<Collider>();
         if (collider != null) collider.enabled = false;
     }

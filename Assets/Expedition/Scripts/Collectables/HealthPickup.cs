@@ -2,85 +2,105 @@ using UnityEngine;
 
 public class HealthPickup : MonoBehaviour
 {
+    [Header("Health Settings")]
     public int healAmount = 1;
+
+    [Header("Effects")]
+    public GameObject healEffect;
+    public AudioClip healSound;
+
+    [Header("Magnet Settings")]
+    public float attractSpeed = 3f;
+    public float attractRange = 2f;
+    public float collectDistance = 0.5f;
+
+    private Transform playerTransform;
+    private bool isAttracted = false;
+    private bool isCollected = false;
     private AudioSource audioSource;
-    private bool hasBeenPickedUp = false;
 
-    // Beweging parameters
-    public float floatAmplitude = 0.5f;  // Amplitude van de beweging (hoe hoog het object beweegt)
-    public float floatFrequency = 1f;    // Frequentie van de beweging (hoe snel het object beweegt)
-
-    private Vector3 startPosition;       // Beginpositie van het object
-
-    // Voeg een referentie naar het Particle System toe
-    public ParticleSystem pickupEffect;
-
-    void Start()
+    void Awake()
     {
         audioSource = GetComponent<AudioSource>();
-        startPosition = transform.position;  // Stel de startpositie in
-
-        // Zorg ervoor dat het Particle System niet speelt bij het starten
-        if (pickupEffect != null && pickupEffect.isPlaying)
-        {
-            pickupEffect.Stop();
-        }
     }
 
     void Update()
     {
-        // Beweeg het object op en neer
-        if (!hasBeenPickedUp)
+        if (playerTransform != null && !isCollected)
         {
-            float newY = startPosition.y + Mathf.Sin(Time.time * floatFrequency) * floatAmplitude;
-            transform.position = new Vector3(startPosition.x, newY, startPosition.z);
+            float distanceToPlayer = Vector3.Distance(transform.position, playerTransform.position);
+
+            // Start attracting if player is close enough
+            if (distanceToPlayer <= attractRange && !isAttracted)
+            {
+                isAttracted = true;
+            }
+
+            // Move towards player if attracted
+            if (isAttracted)
+            {
+                transform.position = Vector3.MoveTowards(transform.position, playerTransform.position, attractSpeed * Time.deltaTime);
+
+                // Collect if close enough
+                if (distanceToPlayer <= collectDistance)
+                {
+                    CollectHealth();
+                }
+            }
         }
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other.gameObject.CompareTag("Player") && !hasBeenPickedUp)
+        if (other.CompareTag("Player") && !isCollected)
         {
-            PlayerHealth playerHealth = other.GetComponent<PlayerHealth>();
-            if (playerHealth != null)
+            playerTransform = other.transform;
+
+            // Try immediate collection if player walks into it
+            var playerHealth = other.GetComponent<PlayerHealth>();
+            if (playerHealth != null && playerHealth.GetCurrentLives() < playerHealth.maxLives)
             {
-                if (playerHealth.GetCurrentLives() < playerHealth.maxLives)
-                {
-                    playerHealth.Heal(healAmount);
-                    hasBeenPickedUp = true;
-                    PlayPickupSoundAndDestroy();
-                }
-                else
-                {
-                    Debug.Log("Speler heeft al volledige gezondheid.");
-                }
+                CollectHealth();
             }
         }
     }
 
-    private void PlayPickupSoundAndDestroy()
+    private void CollectHealth()
     {
-        if (audioSource != null && audioSource.clip != null)
+        if (isCollected) return;
+
+        var playerHealth = playerTransform.GetComponent<PlayerHealth>();
+        if (playerHealth != null)
         {
-            audioSource.Play();
-            HideObjectComponents();
-            // Speel het particle effect af
-            if (pickupEffect != null)
+            // Only collect if player needs health
+            if (playerHealth.GetCurrentLives() < playerHealth.maxLives)
             {
-                pickupEffect.Play();
+                isCollected = true;
+                playerHealth.Heal(healAmount);
+
+                // Play effects
+                PlayHealEffects();
+
+                Debug.Log($"Player healed for {healAmount} health!");
+
+                // Destroy pickup
+                Destroy(gameObject, 0.1f);
             }
-            Destroy(gameObject, audioSource.clip.length);
         }
     }
 
-    private void HideObjectComponents()
+    private void PlayHealEffects()
     {
-        Renderer renderer = GetComponent<Renderer>();
-        Collider collider = GetComponent<Collider>();
+        // Spawn heal effect
+        if (healEffect != null)
+        {
+            Instantiate(healEffect, transform.position, Quaternion.identity);
+        }
 
-        if (renderer != null)
-            renderer.enabled = false;
-        if (collider != null)
-            collider.enabled = false;
+        // Play heal sound
+        if (healSound != null && audioSource != null)
+        {
+            audioSource.PlayOneShot(healSound);
+        }
     }
 }

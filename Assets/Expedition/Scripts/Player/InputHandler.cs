@@ -1,66 +1,133 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 namespace BDE.Expedition.PlayerControls
 {
     public class InputHandler : MonoBehaviour
     {
-        [Header("Movement Keys")]
-        public KeyCode moveUp = KeyCode.W;
-        public KeyCode moveDown = KeyCode.S;
-        public KeyCode moveLeft = KeyCode.A;
-        public KeyCode moveRight = KeyCode.D;
-
-        [Header("Action Keys")]
-        public KeyCode jumpKey = KeyCode.Space;
-        public KeyCode specialAttackKey = KeyCode.E;
-        public KeyCode throwAttackKey = KeyCode.Mouse1; // Right mouse button
-        public KeyCode normalAttackKey = KeyCode.Mouse0; // Left mouse button
-        public KeyCode jumpToBoomerangKey = KeyCode.E;
-        public KeyCode stopHangingKey = KeyCode.S;
+        [Header("Input Settings")]
 
         public Vector2 MovementInput { get; private set; }
+        public Vector2 LookInput { get; private set; }
         public bool JumpInput { get; private set; }
-        public bool SpecialAttackInput { get; private set; }
+        public bool JumpInputHeld { get; private set; }
         public bool AttackInput { get; private set; }
         public bool ThrowAttackInput { get; private set; }
-        public bool JumpToBoomerangInput { get; private set; }
+        public bool SpecialAttackInput { get; private set; }
         public bool StopHangingInput { get; private set; }
+
+        private InputActions inputActions;
+        private bool jumpInputConsumed = false;
+
+        void Awake()
+        {
+            inputActions = new InputActions();
+
+            // Subscribe to input events
+            inputActions.Player.Move.performed += OnMove;
+            inputActions.Player.Move.canceled += OnMove;
+
+            inputActions.Player.Jump.performed += OnJump;
+            inputActions.Player.Jump.canceled += OnJump;
+
+            inputActions.Player.Attack.performed += OnAttack;
+            inputActions.Player.ThrowAttack.performed += OnThrowAttack;
+            inputActions.Player.SpecialAttack.performed += OnSpecialAttack;
+            inputActions.Player.StopHanging.performed += OnStopHanging;
+        }
+
+        void OnEnable()
+        {
+            inputActions.Player.Enable();
+        }
+
+        void OnDisable()
+        {
+            inputActions.Player.Disable();
+        }
+
+        void OnDestroy()
+        {
+            if (inputActions != null)
+            {
+                // Unsubscribe from input events
+                inputActions.Player.Move.performed -= OnMove;
+                inputActions.Player.Move.canceled -= OnMove;
+
+                inputActions.Player.Jump.performed -= OnJump;
+                inputActions.Player.Jump.canceled -= OnJump;
+
+                inputActions.Player.Attack.performed -= OnAttack;
+                inputActions.Player.ThrowAttack.performed -= OnThrowAttack;
+                inputActions.Player.SpecialAttack.performed -= OnSpecialAttack;
+                inputActions.Player.StopHanging.performed -= OnStopHanging;
+
+                inputActions.Dispose();
+            }
+        }
 
         void Update()
         {
-            MovementInput = GetMovementInput();
-            JumpInput = Input.GetKeyDown(jumpKey);
-            SpecialAttackInput = Input.GetKeyDown(specialAttackKey);
-            AttackInput = Input.GetKeyDown(normalAttackKey);
-            ThrowAttackInput = Input.GetKeyDown(throwAttackKey);
-            JumpToBoomerangInput = Input.GetKeyDown(jumpToBoomerangKey);
-            StopHangingInput = Input.GetKeyDown(stopHangingKey);
+            // Reset one-frame inputs after they've been processed
+            if (jumpInputConsumed)
+            {
+                JumpInput = false;
+                jumpInputConsumed = false;
+            }
         }
 
-        private Vector2 GetMovementInput()
+        public void OnMove(InputAction.CallbackContext context)
         {
-            float x = 0f;
-            float y = 0f;
-
-            if (Input.GetKey(moveUp))
-                y += 1f;
-            if (Input.GetKey(moveDown))
-                y -= 1f;
-            if (Input.GetKey(moveLeft))
-                x -= 1f;
-            if (Input.GetKey(moveRight))
-                x += 1f;
-
-            return new Vector2(x, y).normalized;
+            MovementInput = context.ReadValue<Vector2>();
         }
 
-        public void ResetInputs()
+        public void OnJump(InputAction.CallbackContext context)
         {
-            JumpInput = false;
-            SpecialAttackInput = false;
+            if (context.performed)
+            {
+                JumpInput = true;
+                JumpInputHeld = true;
+            }
+            else if (context.canceled)
+            {
+                JumpInputHeld = false;
+            }
+        }
+
+        public void OnAttack(InputAction.CallbackContext context)
+        {
+            if (context.performed)
+                AttackInput = true;
+        }
+
+        public void OnThrowAttack(InputAction.CallbackContext context)
+        {
+            if (context.performed)
+                ThrowAttackInput = true;
+        }
+
+        public void OnSpecialAttack(InputAction.CallbackContext context)
+        {
+            if (context.performed)
+                SpecialAttackInput = true;
+        }
+
+        public void OnStopHanging(InputAction.CallbackContext context)
+        {
+            if (context.performed)
+                StopHangingInput = true;
+        }
+
+        public void ConsumeJumpInput()
+        {
+            jumpInputConsumed = true;
+        }
+
+        public void ResetActionInputs()
+        {
             AttackInput = false;
             ThrowAttackInput = false;
-            JumpToBoomerangInput = false;
+            SpecialAttackInput = false;
             StopHangingInput = false;
         }
     }

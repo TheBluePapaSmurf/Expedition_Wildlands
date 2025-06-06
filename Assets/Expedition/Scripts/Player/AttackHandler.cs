@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections;
 
 namespace BDE.Expedition.PlayerControls
 {
@@ -7,163 +8,269 @@ namespace BDE.Expedition.PlayerControls
         [Header("Attack Settings")]
         public float normalAttackDamage = 10f;
         public float attackCooldown = 0.5f;
-
         public float throwAttackDamage = 15f;
         public float throwCooldown = 1.5f;
-        public GameObject boomerangPrefab; // Prefab van de boemerang voor Jari
-        public GameObject ricoHelmetPrefab; // Prefab van het helm wapen voor Rico
-        public Transform throwPoint; // Het punt vanwaar het wapen wordt gegooid
-        public Transform ricoHandBone; // Het punt vanaf de hand bone van Rico
-        public float throwForce = 10f; // Kracht waarmee de helm wordt gegooid
-        public float throwAngle = 45f; // Hoek waaronder de helm wordt gegooid
 
-        private float attackTimer;
-        private float throwTimer;
+        [Header("Weapon Prefabs")]
+        public GameObject boomerangPrefab;
+        public GameObject ricoHelmetPrefab;
+
+        [Header("Throw Settings")]
+        public Transform throwPoint;
+        public Transform ricoHandBone;
+        public float throwForce = 10f;
+        public float throwAngle = 45f;
+
         private InputHandler inputHandler;
         private CharacterManager characterManager;
         private PlayerMovement playerMovement;
+
+        private float attackTimer;
+        private float throwTimer;
         private GameObject currentBoomerang;
 
+        // Make this field public so other scripts can access it
+        [HideInInspector]
         public bool canThrowWeapon = true;
+
+        private bool isAttacking = false;
+
+        // Object pooling for projectiles
+        private ObjectPool<GameObject> helmetPool;
+        private const int poolSize = 5;
+
+        void Awake()
+        {
+            inputHandler = GetComponent<InputHandler>();
+            playerMovement = GetComponent<PlayerMovement>();
+
+            // Initialize object pool for helmets
+            if (ricoHelmetPrefab != null)
+            {
+                helmetPool = new ObjectPool<GameObject>(CreateHelmet, OnGetHelmet, OnReleaseHelmet, poolSize);
+            }
+        }
 
         void Start()
         {
-            inputHandler = GetComponent<InputHandler>();
-            if (inputHandler == null)
-            {
-                Debug.LogError("InputHandler component is missing.");
-            }
-
             characterManager = CharacterManager.Instance;
-            if (characterManager == null)
-            {
-                Debug.LogError("CharacterManager instance is missing.");
-            }
 
-            playerMovement = FindObjectOfType<PlayerMovement>();
-            if (playerMovement == null)
-            {
-                Debug.LogError("PlayerMovement component is missing.");
-            }
+            if (inputHandler == null)
+                Debug.LogError("InputHandler component is missing.");
+            if (characterManager == null)
+                Debug.LogError("CharacterManager instance is missing.");
         }
 
         void Update()
         {
-            attackTimer += Time.deltaTime;
-            throwTimer += Time.deltaTime;
-            HandleAttacks();
+            UpdateTimers();
+            HandleAttackInputs();
         }
 
-        private void HandleAttacks()
+        void UpdateTimers()
         {
-            if (inputHandler.AttackInput && attackTimer >= attackCooldown)
+            if (attackTimer > 0)
+                attackTimer -= Time.deltaTime;
+            if (throwTimer > 0)
+                throwTimer -= Time.deltaTime;
+        }
+
+        void HandleAttackInputs()
+        {
+            if (inputHandler.AttackInput && CanPerformNormalAttack())
             {
-                NormalAttack();
-                attackTimer = 0f;
+                PerformNormalAttack();
             }
 
-            if (inputHandler.ThrowAttackInput && throwTimer >= throwCooldown)
+            if (inputHandler.ThrowAttackInput && CanPerformThrowAttack())
             {
-                Animator animator = characterManager.GetCurrentAnimator();
-                if (animator != null)
-                {
-                    // Trigger de gooi-animatie voor het actieve karakter
-                    if (characterManager.currentCharacter == CharacterType.Jari && canThrowWeapon)
-                    {
-                        animator.SetTrigger("Throw");
-                        throwTimer = 0f;
-                    }
-                    else if (characterManager.currentCharacter == CharacterType.Rico)
-                    {
-                        animator.SetTrigger("Throw");
-                        throwTimer = 0f;
-                    }
-                }
+                PerformThrowAttack();
             }
         }
 
-        private void NormalAttack()
+        bool CanPerformNormalAttack()
         {
-            Animator animator = characterManager.GetCurrentAnimator();
+            return !isAttacking && attackTimer <= 0 && playerMovement.IsGrounded; // Fixed logic - Can only attack when grounded
+        }
+
+        bool CanPerformThrowAttack()
+        {
+            return !isAttacking && throwTimer <= 0 &&
+                   (characterManager.currentCharacter == CharacterType.Rico ||
+                    (characterManager.currentCharacter == CharacterType.Jari && canThrowWeapon));
+        }
+
+        void PerformNormalAttack()
+        {
+            StartCoroutine(NormalAttackSequence());
+        }
+
+        void PerformThrowAttack()
+        {
+            StartCoroutine(ThrowAttackSequence());
+        }
+
+        IEnumerator NormalAttackSequence()
+        {
+            isAttacking = true;
+            attackTimer = attackCooldown;
+
+            var animator = characterManager.GetCurrentAnimator();
             if (animator != null)
             {
-                // Trigger the normal attack animation
                 animator.SetTrigger("NormalAttack");
-                Debug.Log("Performed Normal Attack with damage: " + normalAttackDamage);
+
+                // Wait for animation to finish
+                yield return new WaitForSeconds(0.1f); // Small delay before checking animation state
+
+                while (animator.GetCurrentAnimatorStateInfo(0).IsName("NormalAttack") &&
+                       animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f)
+                {
+                    yield return null;
+                }
             }
-            else
-            {
-                Debug.LogError("Current Animator is missing.");
-            }
+
+            isAttacking = false;
         }
 
-        // Functie die wordt aangeroepen door het animatie-event
-        public void ThrowHelmet()
+        IEnumerator ThrowAttackSequence()
         {
-            if (characterManager.currentCharacter == CharacterType.Rico)
-            {
-                GameObject weaponPrefab = ricoHelmetPrefab;
+            isAttacking = true;
+            throwTimer = throwCooldown;
 
-                if (weaponPrefab != null && ricoHandBone != null)
+            var animator = characterManager.GetCurrentAnimator();
+            if (animator != null)
+            {
+                animator.SetTrigger("Throw");
+
+                // Wait for animation event to call weapon throw
+                yield return new WaitForSeconds(0.1f);
+
+                while (animator.GetCurrentAnimatorStateInfo(0).IsName("Throwing") &&
+                       animator.GetCurrentAnimatorStateInfo(0).normalizedTime < 1.0f)
                 {
-                    // Instantiate the weapon prefab at the hand bone position
-                    GameObject weapon = Instantiate(weaponPrefab, ricoHandBone.position, ricoHandBone.rotation);
-                    Rigidbody rb = weapon.GetComponent<Rigidbody>();
-                    if (rb != null)
-                    {
-                        // Bereken de werprichting met een boog gebaseerd op de speler's voorwaartse richting
-                        Vector3 throwDirection = CalculateThrowDirection(playerMovement.GetForwardDirection(), throwAngle);
-                        rb.AddForce(throwDirection * throwForce, ForceMode.VelocityChange);
-                        Debug.Log("Performed Throw Attack with Rico's helmet.");
-                    }
-                    else
-                    {
-                        Debug.LogError("Rico's helmet prefab is missing a Rigidbody component.");
-                    }
-                }
-                else
-                {
-                    Debug.LogError("Weapon prefab or hand bone is not set.");
+                    yield return null;
                 }
             }
+
+            isAttacking = false;
         }
 
-        // Functie die wordt aangeroepen door het animatie-event
         public void ThrowBoomerang()
         {
-            if (characterManager.currentCharacter == CharacterType.Jari && canThrowWeapon)
+            if (characterManager.currentCharacter == CharacterType.Jari && canThrowWeapon && boomerangPrefab != null)
             {
-                GameObject weaponPrefab = boomerangPrefab;
+                GameObject weapon = Instantiate(boomerangPrefab, throwPoint.position, throwPoint.rotation);
+                var boomerangScript = weapon.GetComponent<Boomerang>();
 
-                if (weaponPrefab != null && throwPoint != null)
+                if (boomerangScript != null)
                 {
-                    // Instantiate the weapon prefab at the throw point
-                    GameObject weapon = Instantiate(weaponPrefab, throwPoint.position, throwPoint.rotation);
-                    if (characterManager.currentCharacter == CharacterType.Jari && canThrowWeapon)
-                    {
-                        Boomerang boomerangScript = weapon.GetComponent<Boomerang>();
-                        if (boomerangScript != null)
-                        {
-                            // Initialize the boomerang with the player script reference and throw direction
-                            boomerangScript.Initialize(this, throwPoint.forward);
-                            currentBoomerang = weapon;
-                            canThrowWeapon = false;
-                            Debug.Log("Performed Throw Attack with boomerang.");
-                        }
-                        else
-                        {
-                            Debug.LogError("Boomerang prefab is missing the Boomerang script.");
-                        }
-                    }
+                    boomerangScript.Initialize(this, throwPoint.forward);
+                    currentBoomerang = weapon;
+                    canThrowWeapon = false;
                 }
             }
         }
 
-        private Vector3 CalculateThrowDirection(Vector3 forward, float angle)
+        public void ThrowHelmet()
+        {
+            if (characterManager.currentCharacter == CharacterType.Rico && ricoHandBone != null)
+            {
+                GameObject weapon = helmetPool.Get();
+                weapon.transform.position = ricoHandBone.position;
+                weapon.transform.rotation = ricoHandBone.rotation;
+
+                var rb = weapon.GetComponent<Rigidbody>();
+                if (rb != null)
+                {
+                    Vector3 throwDirection = CalculateThrowDirection(playerMovement.GetForwardDirection(), throwAngle);
+                    rb.linearVelocity = Vector3.zero; // Reset velocity (Unity 6 syntax)
+                    rb.AddForce(throwDirection * throwForce, ForceMode.VelocityChange);
+
+                    // Auto-return helmet to pool after a delay
+                    StartCoroutine(ReturnHelmetToPool(weapon, 3f));
+                }
+            }
+        }
+
+        Vector3 CalculateThrowDirection(Vector3 forward, float angle)
         {
             float radians = angle * Mathf.Deg2Rad;
-            Vector3 throwDirection = new Vector3(forward.x * Mathf.Cos(radians), Mathf.Sin(radians), forward.z * Mathf.Cos(radians));
-            return throwDirection.normalized;
+            return new Vector3(
+                forward.x * Mathf.Cos(radians),
+                Mathf.Sin(radians),
+                forward.z * Mathf.Cos(radians)
+            ).normalized;
+        }
+
+        IEnumerator ReturnHelmetToPool(GameObject helmet, float delay)
+        {
+            yield return new WaitForSeconds(delay);
+            helmetPool.Release(helmet);
+        }
+
+        // Object pool methods
+        GameObject CreateHelmet()
+        {
+            return Instantiate(ricoHelmetPrefab);
+        }
+
+        void OnGetHelmet(GameObject helmet)
+        {
+            helmet.SetActive(true);
+        }
+
+        void OnReleaseHelmet(GameObject helmet)
+        {
+            helmet.SetActive(false);
+        }
+
+        public void SetCanThrowWeapon(bool canThrow)
+        {
+            canThrowWeapon = canThrow;
+        }
+
+        // Property for cleaner access (optional - you can use this instead of direct field access)
+        public bool CanThrowWeapon
+        {
+            get { return canThrowWeapon; }
+            set { canThrowWeapon = value; }
+        }
+    }
+
+    // Simple object pool implementation
+    public class ObjectPool<T>
+    {
+        private readonly System.Collections.Generic.Queue<T> pool = new System.Collections.Generic.Queue<T>();
+        private readonly System.Func<T> createFunc;
+        private readonly System.Action<T> onGet;
+        private readonly System.Action<T> onRelease;
+
+        public ObjectPool(System.Func<T> createFunc, System.Action<T> onGet, System.Action<T> onRelease, int preloadCount)
+        {
+            this.createFunc = createFunc;
+            this.onGet = onGet;
+            this.onRelease = onRelease;
+
+            for (int i = 0; i < preloadCount; i++)
+            {
+                var item = createFunc();
+                onRelease(item);
+                pool.Enqueue(item);
+            }
+        }
+
+        public T Get()
+        {
+            T item = pool.Count > 0 ? pool.Dequeue() : createFunc();
+            onGet(item);
+            return item;
+        }
+
+        public void Release(T item)
+        {
+            onRelease(item);
+            pool.Enqueue(item);
         }
     }
 }

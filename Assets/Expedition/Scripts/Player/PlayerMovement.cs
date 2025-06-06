@@ -4,53 +4,69 @@ using Cinemachine;
 
 namespace BDE.Expedition.PlayerControls
 {
+    [RequireComponent(typeof(CharacterController), typeof(InputHandler))]
     public class PlayerMovement : MonoBehaviour
     {
-        public Camera mainCamera;
-
-        public static bool isGameLoading = false;
+        [Header("Movement Settings")]
         public float originalSpeed = 7.5f;
         public float jumpSpeed = 10.0f;
-        public float maxJumpHoldTime = 0.1f;
+        public float maxJumpHoldTime = 0.3f;
         public float gravity = -20.0f;
+        public float rotationSpeed = 10.0f;
+        public float accelerationTime = 0.1f;
+        public float decelerationTime = 0.1f;
+        public float airMovementMultiplier = 0.8f;
+
+        [Header("Ground Detection")]
         public Transform groundCheck;
         public float groundDistance = 0.1f;
         public LayerMask groundMask;
         public float coyoteTime = 0.2f;
-        public float rotationSpeed = 10.0f;
 
-        public float accelerationTime = 0.1f;
-        public float decelerationTime = 0.1f;
+        [Header("Camera")]
+        public Camera mainCamera;
+        public CinemachineFreeLook freeLookCamera;
 
+        [Header("Effects")]
         public ParticleSystem[] walkingParticleEffect;
         public GameObject jumpEffectPrefab;
-        private bool areParticlesPlaying = false;
 
         private CharacterController characterController;
+        private InputHandler inputHandler;
         private Animator currentAnimator;
-        private float verticalVelocity = 0.0f;
-        private int jumpCount = 0;
-        private bool isGrounded;
-        private float coyoteTimeCounter;
-        private Vector3 currentVelocity;
-        private Vector3 targetVelocity;
-        private bool isJumpingToBoomerang = false;
-        private GameObject currentBoomerang;
-
         private LedgeDetection ledgeDetection;
+
+        private Vector3 velocity;
+        private Vector3 horizontalVelocity;
+        private float verticalVelocity;
+
+        private bool isGrounded;
+        private bool wasGrounded;
+        private float coyoteTimeCounter;
+        private int jumpCount = 0;
+        private const int maxJumps = 2;
+
         private bool isHangingOnLedge = false;
         private bool hasLeftLedge = false;
+        private bool areParticlesPlaying = false;
 
-        private InputHandler inputHandler;
+        private float jumpInputTimer = 0f;
 
-        public CinemachineFreeLook freeLookCamera;
+        public bool IsGrounded => isGrounded;
+        public bool IsMoving => horizontalVelocity.magnitude > 0.1f;
+
+        void Awake()
+        {
+            characterController = GetComponent<CharacterController>();
+            inputHandler = GetComponent<InputHandler>();
+            ledgeDetection = GetComponent<LedgeDetection>();
+
+            if (mainCamera == null)
+                mainCamera = Camera.main;
+        }
 
         void Start()
         {
-            characterController = GetComponent<CharacterController>();
-            ledgeDetection = GetComponent<LedgeDetection>();
-            inputHandler = GetComponent<InputHandler>();
-
             SetCurrentAnimator();
             UpdateMovementProperties();
             coyoteTimeCounter = coyoteTime;
@@ -58,208 +74,210 @@ namespace BDE.Expedition.PlayerControls
 
         void Update()
         {
-            if (isGrounded)
+            UpdateGroundState();
+            HandleLedgeHanging();
+
+            if (!isHangingOnLedge)
             {
-                hasLeftLedge = false; // Reset hasLeftLedge when the player is grounded
+                HandleJumpInput();
+                HandleMovement();
+                ApplyGravity();
+                ApplyMovement();
+                UpdateAnimations();
+                HandleParticleEffects();
             }
 
-            if (!hasLeftLedge && ledgeDetection.IsLedgeDetected() && !isGrounded && !isHangingOnLedge)
+            // Reset input flags
+            inputHandler.ResetActionInputs();
+        }
+
+        void UpdateGroundState()
+        {
+            wasGrounded = isGrounded;
+            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
+
+            if (isGrounded && !wasGrounded)
+            {
+                OnLanded();
+            }
+            else if (isGrounded)
+            {
+                coyoteTimeCounter = coyoteTime;
+                hasLeftLedge = false;
+            }
+            else
+            {
+                coyoteTimeCounter -= Time.deltaTime;
+            }
+        }
+
+        void HandleJumpInput()
+        {
+            if (inputHandler.JumpInput)
+            {
+                if (CanJump())
+                {
+                    PerformJump();
+                    inputHandler.ConsumeJumpInput();
+                }
+            }
+
+            // Handle variable jump height
+            if (inputHandler.JumpInputHeld && verticalVelocity > 0 && jumpInputTimer < maxJumpHoldTime)
+            {
+                jumpInputTimer += Time.deltaTime;
+                verticalVelocity += (jumpSpeed * 0.5f) * Time.deltaTime;
+            }
+            else if (!inputHandler.JumpInputHeld && verticalVelocity > 0)
+            {
+                verticalVelocity *= 0.5f; // Cut jump short
+            }
+        }
+
+        bool CanJump()
+        {
+            return (isGrounded || coyoteTimeCounter > 0 || jumpCount < maxJumps);
+        }
+
+        void PerformJump()
+        {
+            verticalVelocity = jumpSpeed;
+            jumpCount++;
+            jumpInputTimer = 0f;
+
+            if (jumpCount == 1)
+            {
+                currentAnimator?.SetTrigger("Jump");
+            }
+            else if (jumpCount == 2)
+            {
+                currentAnimator?.SetTrigger("DoubleJump");
+            }
+
+            // Spawn jump effect
+            if (jumpEffectPrefab != null && groundCheck != null)
+            {
+                Instantiate(jumpEffectPrefab, groundCheck.position, Quaternion.identity);
+            }
+        }
+
+        void HandleMovement()
+        {
+            Vector3 inputVector = new Vector3(inputHandler.MovementInput.x, 0, inputHandler.MovementInput.y);
+
+            if (inputVector.magnitude < 0.1f)
+            {
+                // Decelerate when no input
+                horizontalVelocity = Vector3.MoveTowards(horizontalVelocity, Vector3.zero,
+                    originalSpeed / decelerationTime * Time.deltaTime);
+            }
+            else
+            {
+                // Transform input relative to camera
+                Vector3 cameraForward = mainCamera.transform.forward;
+                Vector3 cameraRight = mainCamera.transform.right;
+                cameraForward.y = 0;
+                cameraRight.y = 0;
+                cameraForward.Normalize();
+                cameraRight.Normalize();
+
+                Vector3 desiredDirection = (cameraForward * inputVector.z + cameraRight * inputVector.x).normalized;
+                Vector3 targetVelocity = desiredDirection * originalSpeed;
+
+                // Apply air movement penalty
+                if (!isGrounded)
+                    targetVelocity *= airMovementMultiplier;
+
+                // Accelerate towards target velocity
+                horizontalVelocity = Vector3.MoveTowards(horizontalVelocity, targetVelocity,
+                    originalSpeed / accelerationTime * Time.deltaTime);
+
+                // Rotate towards movement direction
+                if (horizontalVelocity.magnitude > 0.1f)
+                {
+                    Quaternion targetRotation = Quaternion.LookRotation(horizontalVelocity.normalized);
+                    transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation,
+                        rotationSpeed * Time.deltaTime);
+                }
+            }
+        }
+
+        void ApplyGravity()
+        {
+            if (isGrounded && verticalVelocity < 0)
+            {
+                verticalVelocity = -2f; // Small downward force to keep grounded
+            }
+            else
+            {
+                float gravityMultiplier = verticalVelocity < 0 ? 1.5f : 1f; // Fall faster than rise
+                verticalVelocity += gravity * gravityMultiplier * Time.deltaTime;
+            }
+        }
+
+        void ApplyMovement()
+        {
+            velocity = horizontalVelocity + Vector3.up * verticalVelocity;
+            characterController.Move(velocity * Time.deltaTime);
+        }
+
+        void UpdateAnimations()
+        {
+            if (currentAnimator == null) return;
+
+            float speed = horizontalVelocity.magnitude / originalSpeed;
+            currentAnimator.SetFloat("Speed", speed);
+            currentAnimator.SetBool("IsGrounded", isGrounded);
+            currentAnimator.SetBool("IsInAir", !isGrounded);
+            currentAnimator.SetFloat("VerticalVelocity", verticalVelocity);
+        }
+
+        void HandleParticleEffects()
+        {
+            bool shouldPlayParticles = isGrounded && IsMoving;
+
+            if (shouldPlayParticles && !areParticlesPlaying)
+            {
+                foreach (var particle in walkingParticleEffect)
+                    particle?.Play();
+                areParticlesPlaying = true;
+            }
+            else if (!shouldPlayParticles && areParticlesPlaying)
+            {
+                foreach (var particle in walkingParticleEffect)
+                    particle?.Stop();
+                areParticlesPlaying = false;
+            }
+        }
+
+        void OnLanded()
+        {
+            jumpCount = 0;
+            verticalVelocity = 0f;
+            jumpInputTimer = 0f;
+            currentAnimator?.SetTrigger("Land");
+        }
+
+        void HandleLedgeHanging()
+        {
+            if (!hasLeftLedge && ledgeDetection != null && ledgeDetection.IsLedgeDetected() &&
+                !isGrounded && !isHangingOnLedge)
             {
                 StartHanging();
             }
 
             if (isHangingOnLedge)
             {
-                HandleHangingInput();
-            }
-            else
-            {
-                GroundCheck();
-                ProcessJumpInput();
-                Move();
-                ApplyGravity();
-                HandleAnimatorStates();
-            }
-        }
-
-        public void SetCurrentAnimator()
-        {
-            currentAnimator = CharacterManager.Instance.GetCurrentAnimator();
-        }
-
-        public void UpdateMovementProperties()
-        {
-            var movementProperties = CharacterManager.Instance.GetCurrentMovementProperties();
-            originalSpeed = movementProperties.originalSpeed;
-            jumpSpeed = movementProperties.jumpSpeed;
-            maxJumpHoldTime = movementProperties.maxJumpHoldTime;
-            gravity = movementProperties.gravity;
-            rotationSpeed = movementProperties.rotationSpeed;
-        }
-
-        void GroundCheck()
-        {
-            bool wasGrounded = isGrounded;
-            isGrounded = Physics.CheckSphere(groundCheck.position, groundDistance, groundMask);
-
-            if (isGrounded && verticalVelocity < 0)
-            {
-                currentAnimator.SetBool("IsJumping", false);
-                currentAnimator.SetBool("IsDoubleJumping", false);
-                currentAnimator.SetBool("IsInAir", false);
-                verticalVelocity = -2f;
-                jumpCount = 0;
-
-                if (!areParticlesPlaying)
+                if (inputHandler.JumpInput)
                 {
-                    foreach (ParticleSystem particleEffect in walkingParticleEffect)
-                    {
-                        particleEffect.Play();
-                    }
-                    areParticlesPlaying = true;
+                    StopHanging();
+                    PerformJump();
+                    inputHandler.ConsumeJumpInput();
                 }
-            }
-            else if (!wasGrounded && isGrounded)
-            {
-                coyoteTimeCounter = coyoteTime;
-                currentAnimator.SetBool("IsInAir", false);
-
-                if (!areParticlesPlaying)
+                else if (inputHandler.StopHangingInput)
                 {
-                    foreach (ParticleSystem particleEffect in walkingParticleEffect)
-                    {
-                        particleEffect.Play();
-                    }
-                    areParticlesPlaying = true;
+                    StopHanging();
                 }
-            }
-            else if (!isGrounded)
-            {
-                coyoteTimeCounter -= Time.deltaTime;
-                currentAnimator.SetBool("IsInAir", true);
-
-                if (areParticlesPlaying)
-                {
-                    foreach (ParticleSystem particleEffect in walkingParticleEffect)
-                    {
-                        particleEffect.Stop();
-                    }
-                    areParticlesPlaying = false;
-                }
-            }
-        }
-
-        void ProcessJumpInput()
-        {
-            if (inputHandler.JumpInput)
-            {
-                Jump(maxJumpHoldTime);
-                inputHandler.ResetInputs();
-            }
-
-            if (inputHandler.SpecialAttackInput)
-            {
-                JumpToBoomerang();
-                inputHandler.ResetInputs();
-            }
-        }
-
-        void Move()
-        {
-            Vector3 inputVector = new Vector3(inputHandler.MovementInput.x, 0, inputHandler.MovementInput.y).normalized;
-
-            // Transformeer de invoer vector naar wereldruimte
-            Vector3 transformedInput = mainCamera.transform.TransformDirection(inputVector);
-            transformedInput.y = 0f; // We negeren de y-component om ervoor te zorgen dat de beweging in het xz-vlak blijft
-            transformedInput.Normalize();
-
-            currentAnimator.SetFloat("Speed", transformedInput.magnitude);
-
-            // Beweeg de speler in de wereldruimte gebaseerd op de getransformeerde invoer vector
-            targetVelocity = transformedInput * originalSpeed;
-
-            if (!isGrounded)
-            {
-                targetVelocity *= 0.9f;
-            }
-
-            if (transformedInput.magnitude > 0)
-            {
-                currentVelocity = Vector3.MoveTowards(currentVelocity, targetVelocity, originalSpeed / accelerationTime * Time.deltaTime);
-            }
-            else
-            {
-                currentVelocity = Vector3.MoveTowards(currentVelocity, Vector3.zero, originalSpeed / decelerationTime * Time.deltaTime);
-            }
-
-            // Verplaats de speler
-            characterController.Move(currentVelocity * Time.deltaTime);
-
-            // Draaien naar de bewegingsrichting alleen als er beweging is
-            if (currentVelocity != Vector3.zero)
-            {
-                Quaternion targetRotation = Quaternion.LookRotation(currentVelocity);
-                transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, rotationSpeed * Time.deltaTime);
-            }
-
-            // Voeg de verticale snelheid toe
-            characterController.Move(Vector3.up * verticalVelocity * Time.deltaTime);
-        }
-
-        void Jump(float heldTime)
-        {
-            if (isGrounded || coyoteTimeCounter > 0 || (jumpCount < 2 && !isGrounded))
-            {
-                float jumpHeightMultiplier = Mathf.Clamp(heldTime / maxJumpHoldTime, 0.75f, 1.25f);
-                verticalVelocity = jumpSpeed * jumpHeightMultiplier;
-                currentAnimator.SetBool("IsJumping", true);
-                jumpCount++;
-
-                if (jumpCount == 2)
-                {
-                    StartCoroutine(ActivateDoubleJumpAnimation());
-                }
-            }
-        }
-
-        void JumpToBoomerang()
-        {
-            if (currentBoomerang && currentBoomerang.GetComponent<Boomerang>().IsHovering)
-            {
-                StartCoroutine(JumpToBoomerangCoroutine(currentBoomerang.transform.position));
-                isJumpingToBoomerang = true;
-            }
-        }
-
-        void OnTriggerEnter(Collider other)
-        {
-            if (other.CompareTag("Boomerang") && isJumpingToBoomerang)
-            {
-                Jump(maxJumpHoldTime);
-                currentAnimator.SetBool("IsDoubleJumping", true);
-                isJumpingToBoomerang = false;
-            }
-        }
-
-        void ApplyGravity()
-        {
-            if (verticalVelocity < 0)
-            {
-                verticalVelocity += gravity * 1.5f * Time.deltaTime;
-            }
-            else
-            {
-                verticalVelocity += gravity * Time.deltaTime;
-            }
-        }
-
-        void HandleAnimatorStates()
-        {
-            currentAnimator.SetBool("IsInAir", !isGrounded);
-
-            if (currentAnimator.GetCurrentAnimatorStateInfo(0).IsName("Throwing") && currentAnimator.GetCurrentAnimatorStateInfo(0).normalizedTime >= 1.0f)
-            {
-                currentAnimator.SetBool("IsThrowing", false);
             }
         }
 
@@ -267,71 +285,39 @@ namespace BDE.Expedition.PlayerControls
         {
             isHangingOnLedge = true;
             verticalVelocity = 0;
-            currentVelocity = Vector3.zero;
-            characterController.enabled = false; // Disable the CharacterController to prevent it from moving
-
-            currentAnimator.SetBool("IsGrabbingLedge", true);
+            horizontalVelocity = Vector3.zero;
+            characterController.enabled = false;
+            currentAnimator?.SetBool("IsGrabbingLedge", true);
             jumpCount = 1;
         }
 
         void StopHanging()
         {
             isHangingOnLedge = false;
-            characterController.enabled = true; // Re-enable the CharacterController
-            hasLeftLedge = true; // Mark that the player has left the ledge
-
-            currentAnimator.SetBool("IsGrabbingLedge", false);
+            characterController.enabled = true;
+            hasLeftLedge = true;
+            currentAnimator?.SetBool("IsGrabbingLedge", false);
         }
 
-        void HandleHangingInput()
+        public void SetCurrentAnimator()
         {
-            if (Input.GetKeyDown(KeyCode.Space))
+            currentAnimator = CharacterManager.Instance?.GetCurrentAnimator();
+        }
+
+        public void UpdateMovementProperties()
+        {
+            var movementProperties = CharacterManager.Instance?.GetCurrentMovementProperties();
+            if (movementProperties != null)
             {
-                // Logic to let the player jump off the ledge
-                StopHanging();
-                Jump(maxJumpHoldTime);
-            }
-            else if (Input.GetKeyDown(KeyCode.S))
-            {
-                // Logic to let the player drop from the ledge
-                StopHanging();
+                originalSpeed = movementProperties.originalSpeed;
+                jumpSpeed = movementProperties.jumpSpeed;
+                maxJumpHoldTime = movementProperties.maxJumpHoldTime;
+                gravity = movementProperties.gravity;
+                rotationSpeed = movementProperties.rotationSpeed;
             }
         }
 
-        IEnumerator JumpToBoomerangCoroutine(Vector3 target)
-        {
-            float jumpDuration = 0.5f;
-            float time = 0;
-            Vector3 startPosition = transform.position;
-
-            while (time < jumpDuration)
-            {
-                transform.position = Vector3.Lerp(startPosition, target, time / jumpDuration);
-                time += Time.deltaTime;
-                yield return null;
-            }
-
-            transform.position = target;
-            isJumpingToBoomerang = false;
-        }
-
-        IEnumerator ActivateDoubleJumpAnimation()
-        {
-            currentAnimator.SetBool("IsDoubleJumping", true);
-            yield return new WaitForSeconds(0.5f);
-            currentAnimator.SetBool("IsDoubleJumping", false);
-        }
-
-        // Coroutine om het prefab na een vertraging te vernietigen
-        IEnumerator DestroyAfterSeconds(GameObject obj, float seconds)
-        {
-            yield return new WaitForSeconds(seconds);
-            Destroy(obj);
-        }
-
-        public Vector3 GetForwardDirection()
-        {
-            return transform.forward;
-        }
+        public Vector3 GetForwardDirection() => transform.forward;
+        public Vector3 GetVelocity() => velocity;
     }
 }

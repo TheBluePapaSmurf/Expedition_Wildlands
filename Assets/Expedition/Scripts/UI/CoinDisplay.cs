@@ -1,45 +1,70 @@
-using UnityEngine;
 using TMPro;
+using UnityEngine;
 
 public class CoinDisplay : MonoBehaviour
 {
     [SerializeField] private TextMeshProUGUI coinText; // Sleep hier het Text component in de Inspector
-    private PlayerInventory playerInventory;
+    private CoinCollector coinCollector;
 
     void Start()
+    {
+        FindCoinCollector();
+        UpdateCoinText(); // Initialiseer de muntentekst
+    }
+
+    void FindCoinCollector()
     {
         GameObject player = GameObject.FindWithTag("Player");
         if (player != null)
         {
-            playerInventory = player.GetComponent<PlayerInventory>();
-            if (playerInventory != null)
+            coinCollector = player.GetComponent<CoinCollector>();
+            if (coinCollector != null)
             {
-                playerInventory.onInventoryLoaded += UpdateCoinText; // Abonneer op het laden event
+                // Subscribe to events for automatic updates
+                coinCollector.onInventoryLoaded += UpdateCoinText;
+                coinCollector.OnCoinsChanged.AddListener(OnCoinsChanged);
+            }
+            else
+            {
+                Debug.LogError("CoinCollector component not found on Player!");
             }
         }
-
-        UpdateCoinText(); // Initialiseer de muntentekst
+        else
+        {
+            Debug.LogError("Player GameObject not found!");
+        }
     }
 
-    void Update()
+    private void OnCoinsChanged(int newCoinCount)
     {
-        // Werk de tekst bij bij elke frame update
         UpdateCoinText();
     }
 
     private void UpdateCoinText()
     {
-        if (playerInventory != null)
+        if (coinCollector != null && coinText != null)
         {
-            coinText.text = $"{playerInventory.Coins}";
+            coinText.text = $"{coinCollector.Coins}";
         }
     }
 
     void OnDestroy()
     {
-        if (playerInventory != null)
+        if (coinCollector != null)
         {
-            playerInventory.onInventoryLoaded -= UpdateCoinText; // Zorg ervoor dat je afmeldt voor het event
+            // Unsubscribe from events to prevent memory leaks
+            coinCollector.onInventoryLoaded -= UpdateCoinText;
+            coinCollector.OnCoinsChanged.RemoveListener(OnCoinsChanged);
         }
+    }
+
+    // Public method to manually refresh the display
+    public void RefreshDisplay()
+    {
+        if (coinCollector == null)
+        {
+            FindCoinCollector();
+        }
+        UpdateCoinText();
     }
 }
